@@ -1,3 +1,5 @@
+'use server';
+
 import { db, storage, auth } from '@/lib/firebase';
 import type { Grievance } from '@/types';
 import {
@@ -45,6 +47,7 @@ export const addGrievance = async (
   let fileUrl: string | undefined = undefined;
   let filePath: string | undefined = undefined;
 
+  // Check if a file is present and has content
   if (data.file && data.file.length > 0) {
     const file = data.file[0];
     const storagePath = `grievances/${user.uid}/${Date.now()}_${file.name}`;
