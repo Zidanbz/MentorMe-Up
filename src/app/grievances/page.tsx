@@ -1,3 +1,4 @@
+
 'use client';
 
 import { AppLayout } from '@/components/shared/AppLayout';
@@ -9,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -154,7 +156,7 @@ export default function GrievancesPage() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && user.uid && user.email) {
       fetchGrievances();
     }
      // Listen for custom event to re-fetch
