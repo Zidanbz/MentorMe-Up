@@ -20,7 +20,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';import { ListTodo } from 'lucide-react';
+} from '@/components/ui/dropdown-menu';import { ListTodo, ShieldAlert } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -41,8 +41,9 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
-  { href: '/user-guide', label: 'User Guide', icon: BookUser },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
+  { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert },
+  { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {

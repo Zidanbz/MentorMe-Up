@@ -51,3 +51,15 @@ export type Project = {
   milestones: Milestone[];
   createdAt: Timestamp;
 };
+
+export type Grievance = {
+  id: string;
+  userId: string;
+  userEmail: string;
+  subject: string;
+  description: string;
+  fileUrl?: string;
+  filePath?: string;
+  createdAt: Timestamp;
+  status: 'Open' | 'In Progress' | 'Resolved';
+}
