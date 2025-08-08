@@ -64,10 +64,10 @@ export default function GrievancesPage() {
       }
     };
 
-    if (user && user.email) {
+    if (user?.uid && user?.email) {
       fetchGrievances();
     }
-  }, [user]);
+  }, [user, toast]);
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
     if (!user || !user.email) {
@@ -75,7 +75,7 @@ export default function GrievancesPage() {
         return;
     }
     try {
-        let fileData: GrievanceClientData['file'] = undefined;
+        let fileData: GrievanceClientData['file'] | undefined = undefined;
         if (data.file && data.file.length > 0) {
             const file = data.file[0];
             const arrayBuffer = await file.arrayBuffer();
@@ -139,14 +139,14 @@ export default function GrievancesPage() {
                 </CardContent>
             </Card>
         ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4">
                 {grievances.map(g => (
                     <Card key={g.id}>
                         <CardHeader>
                             <CardTitle>{g.subject}</CardTitle>
                             <CardDescription>
                                 {isCEO && `From: ${g.userEmail} | `}
-                                Submitted on {format(g.createdAt as Date, 'MMM d, yyyy, HH:mm')}
+                                Submitted on {format(g.createdAt, 'MMM d, yyyy, HH:mm')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
