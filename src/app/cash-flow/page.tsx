@@ -65,6 +65,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transactionService';
+import { useAuth } from '@/hooks/useAuth';
 
 const transactionFormSchema = z.object({
   type: z.enum(['Income', 'Expense']),
@@ -88,6 +89,8 @@ export default function CashFlowPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isCFO = user?.email === 'cfo@mentorme.com';
 
   const fetchTransactions = async () => {
     try {
@@ -137,11 +140,19 @@ export default function CashFlowPage() {
   };
   
   const openEditDialog = (transaction: Transaction) => {
+    if (!isCFO) {
+        toast({ variant: 'destructive', title: 'Permission Denied', description: 'Only the CFO can edit transactions.' });
+        return;
+    }
     setEditingTransaction(transaction);
     setIsDialogOpen(true);
   };
 
   const openNewDialog = () => {
+     if (!isCFO) {
+        toast({ variant: 'destructive', title: 'Permission Denied', description: 'Only the CFO can add transactions.' });
+        return;
+    }
     setEditingTransaction(null);
     setIsDialogOpen(true);
   }
@@ -151,7 +162,7 @@ export default function CashFlowPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Cash Flow</h1>
-          <Button onClick={openNewDialog}>
+          <Button onClick={openNewDialog} disabled={!isCFO} title={!isCFO ? 'Only the CFO can add transactions' : ''}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Transaction
           </Button>
@@ -173,13 +184,13 @@ export default function CashFlowPage() {
           </TabsList>
 
           <TabsContent value="all">
-            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading}/>
+            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
           </TabsContent>
           <TabsContent value="income">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
           </TabsContent>
           <TabsContent value="expense">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
           </TabsContent>
         </Tabs>
       </div>
@@ -330,7 +341,16 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
     );
 }
 
-function TransactionTable({ transactions, onEdit, onDelete, loading }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean }) {
+function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean, isCFO: boolean }) {
+    const { toast } = useToast();
+    const handlePermissionDenied = () => {
+        toast({
+            variant: 'destructive',
+            title: 'Permission Denied',
+            description: 'Only the CFO can perform this action.'
+        });
+    }
+
     return (
         <Card>
             <Table>
@@ -378,10 +398,10 @@ function TransactionTable({ transactions, onEdit, onDelete, loading }: { transac
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onEdit(t)} disabled={!isCFO}>Edit</DropdownMenuItem>
                                             <AlertDialog>
                                               <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Delete</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={!isCFO}>Delete</DropdownMenuItem>
                                               </AlertDialogTrigger>
                                               <AlertDialogContent>
                                                 <AlertDialogHeader>
