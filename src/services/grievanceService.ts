@@ -48,14 +48,22 @@ export const addGrievance = async (
   let fileUrl: string | undefined = undefined;
   let filePath: string | undefined = undefined;
 
-  if (data.file) {
-    const fileBuffer = Buffer.from(data.file.buffer, 'base64');
-    const storagePath = `grievances/${user.userId}/${Date.now()}_${data.file.name}`;
-    const storageRef = ref(storage, storagePath);
+  // Only process file if it exists
+  if (data.file && data.file.buffer) {
+    try {
+      const fileBuffer = Buffer.from(data.file.buffer, 'base64');
+      const storagePath = `grievances/${user.userId}/${Date.now()}_${data.file.name}`;
+      const storageRef = ref(storage, storagePath);
 
-    await uploadBytes(storageRef, fileBuffer, { contentType: data.file.type });
-    fileUrl = await getDownloadURL(storageRef);
-    filePath = storagePath;
+      await uploadBytes(storageRef, fileBuffer, { contentType: data.file.type });
+      fileUrl = await getDownloadURL(storageRef);
+      filePath = storagePath;
+    } catch(e) {
+        console.error("File upload failed", e);
+        // Optionally re-throw or handle the error, for now we will just log it
+        // and proceed without a file.
+        throw new Error("File could not be uploaded.");
+    }
   }
 
   const newGrievance = {
