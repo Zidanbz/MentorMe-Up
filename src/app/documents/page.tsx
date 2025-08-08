@@ -55,7 +55,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument } from '@/services/documentService';
@@ -264,7 +263,7 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
                                             <DropdownMenuItem asChild><a href={doc.url} download={doc.name}><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
-                                             <DropdownMenuItem className="text-red-600" onClick={() => setDocToDelete(doc)} onSelect={(e) => e.preventDefault()}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                             <DropdownMenuItem className="text-red-600" onClick={() => setDocToDelete(doc)}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
