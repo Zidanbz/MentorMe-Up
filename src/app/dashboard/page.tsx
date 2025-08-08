@@ -9,6 +9,8 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RecentActivity } from '@/types';
 
+// NOTE: In a real application, this data would come from a shared state management solution (e.g., Context, Redux, Zustand)
+// or be fetched from an API. For this prototype, we'll keep it simple.
 const chartData = [
   { month: 'January', income: 18600000, expense: 8000000 },
   { month: 'February', income: 30500000, expense: 12900000 },
@@ -46,6 +48,12 @@ export default function DashboardPage() {
     }).format(value);
   }
 
+  // Calculate total income and expenses for the current cash balance
+  const totalIncome = chartData.reduce((acc, item) => acc + item.income, 0);
+  const totalExpense = chartData.reduce((acc, item) => acc + item.expense, 0);
+  const currentBalance = totalIncome - totalExpense;
+
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
@@ -53,23 +61,23 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <DashboardCard
             title="Current Cash Balance"
-            value={formatCurrency(45231890)}
+            value={formatCurrency(currentBalance)}
             icon={Banknote}
             details="+20.1% from last month"
             change="up"
           />
           <DashboardCard
             title="Total Documents"
-            value="1,250"
+            value="6"
             icon={FileText}
-            details="+120 this month"
+            details="+2 this month"
             change="up"
           />
           <DashboardCard
             title="Monthly Transactions"
-            value="+573"
+            value={`+${chartData.length * 2}`}
             icon={Activity}
-            details="312 income, 261 expenses"
+            details={`${chartData.length} income, ${chartData.length} expenses`}
           />
           <DashboardCard
             title="Active Users"
@@ -103,6 +111,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
+                    {recentActivities.length === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
                     {recentActivities.map((activity) => (
                         <div key={activity.id} className="flex items-center gap-4">
                             <Avatar className="h-10 w-10 border">
@@ -150,3 +159,5 @@ function DashboardCard({ title, value, icon: Icon, details, change }: DashboardC
     </Card>
   );
 }
+
+    

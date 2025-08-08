@@ -1,9 +1,9 @@
 export type Document = {
   id: string;
   name: string;
-  type: 'PDF' | 'Word' | 'Excel' | 'Image';
+  type: 'PDF' | 'Word' | 'Excel' | 'Image' | 'Other';
   category: 'Legal' | 'Finance' | 'Operations' | 'Reports';
-  createdAt: string;
+  createdAt: Date;
   url: string;
 };
 
@@ -23,3 +23,5 @@ export type RecentActivity = {
   action: string;
   timestamp: string;
 };
+
+    
