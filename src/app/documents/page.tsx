@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument } from '@/services/documentService';
+import { useAuth } from '@/hooks/useAuth';
 
 const documentSchema = z.object({
     category: z.enum(['Legal', 'Finance', 'Operations', 'Reports']),
@@ -69,13 +70,26 @@ const documentSchema = z.object({
 type DocumentFormData = z.infer<typeof documentSchema>;
 
 
-const categories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports'];
+const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports'];
+
+const rolePermissions: Record<string, Document['category'][]> = {
+    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports'],
+    'cfo@mentorme.com': ['Finance'],
+    'coo@mentorme.com': ['Operations'],
+    'legal@mentorme.com': ['Legal'],
+};
+
 
 export default function DocumentsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const { toast } = useToast();
+    const { user } = useAuth();
+
+    const userEmail = user?.email || '';
+    const userAllowedCategories = rolePermissions[userEmail] || [];
+    const canUpload = userAllowedCategories.length > 0;
 
     const fetchDocuments = async () => {
         try {
@@ -119,7 +133,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Documents</h1>
-                <Button onClick={() => setIsUploadDialogOpen(true)}>
+                <Button onClick={() => setIsUploadDialogOpen(true)} disabled={!canUpload}>
                     <FileUp className="mr-2 h-4 w-4" />
                     Upload Document
                 </Button>
@@ -129,20 +143,21 @@ export default function DocumentsPage() {
                 isOpen={isUploadDialogOpen} 
                 setIsOpen={setIsUploadDialogOpen} 
                 onAddDocument={handleAddDocument}
+                allowedCategories={userAllowedCategories}
             />
 
             <Tabs defaultValue="all">
             <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
-                {categories.map(cat => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
+                {allCategories.map(cat => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
             </TabsList>
 
             <TabsContent value="all">
-                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} />
+                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} />
             </TabsContent>
-            {categories.map(cat => (
+            {allCategories.map(cat => (
                 <TabsContent key={cat} value={cat}>
-                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} />
+                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} />
                 </TabsContent>
             ))}
             </Tabs>
@@ -155,12 +170,13 @@ type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     onAddDocument: (data: DocumentFormData) => void;
+    allowedCategories: Document['category'][];
 }
 
-function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocumentDialogProps) {
+function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories }: UploadDocumentDialogProps) {
     const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<DocumentFormData>({
         resolver: zodResolver(documentSchema),
-        defaultValues: { category: 'Finance' }
+        defaultValues: { category: allowedCategories[0] }
     });
 
     const onSubmit = (data: DocumentFormData) => {
@@ -168,10 +184,10 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
     };
 
     useEffect(() => {
-        if (!isOpen) {
-            reset();
+        if (isOpen) {
+             reset({ category: allowedCategories[0] });
         }
-    }, [isOpen, reset]);
+    }, [isOpen, reset, allowedCategories]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -200,7 +216,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                            {allowedCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 )}
@@ -221,7 +237,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
     );
 }
 
-function DocumentTable({ documents, onDelete, loading }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean }) {
+function DocumentTable({ documents, onDelete, loading, allowedCategories }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean, allowedCategories: Document['category'][] }) {
     
     return (
         <Card>
@@ -247,37 +263,44 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
                             <TableCell colSpan={5} className="text-center h-24">No documents found.</TableCell>
                         </TableRow>
                     ) : (
-                        documents.map((doc) => (
-                            <TableRow key={doc.id}>
-                                <TableCell className="font-medium">{doc.name}</TableCell>
-                                <TableCell>{doc.type}</TableCell>
-                                <TableCell>{doc.category}</TableCell>
-                                <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem asChild>
-                                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
-                                                    <Eye className="mr-2 h-4 w-4" />Preview
-                                                </a>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem asChild>
-                                                <a href={doc.url} download={doc.name} className="flex items-center cursor-pointer">
-                                                    <Download className="mr-2 h-4 w-4" />Download
-                                                </a>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DeleteDocumentMenuItem doc={doc} onDelete={onDelete} />
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))
+                        documents.map((doc) => {
+                            const canDelete = allowedCategories.includes(doc.category);
+                            return (
+                                <TableRow key={doc.id}>
+                                    <TableCell className="font-medium">{doc.name}</TableCell>
+                                    <TableCell>{doc.type}</TableCell>
+                                    <TableCell>{doc.category}</TableCell>
+                                    <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem asChild>
+                                                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
+                                                        <Eye className="mr-2 h-4 w-4" />Preview
+                                                    </a>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem asChild>
+                                                    <a href={doc.url} download={doc.name} className="flex items-center cursor-pointer">
+                                                        <Download className="mr-2 h-4 w-4" />Download
+                                                    </a>
+                                                </DropdownMenuItem>
+                                                {canDelete && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DeleteDocumentMenuItem doc={doc} onDelete={onDelete} />
+                                                    </>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })
                     )}
                 </TableBody>
             </Table>
@@ -289,10 +312,13 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-red-600">
+        <DropdownMenuItem 
+            onSelect={(e) => e.preventDefault()}
+            className="text-red-600 focus:text-red-600"
+        >
           <Trash className="mr-2 h-4 w-4" />
           <span>Delete</span>
-        </div>
+        </DropdownMenuItem>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
