@@ -4,7 +4,7 @@ export type Document = {
   id: string;
   name: string;
   type: 'PDF' | 'Word' | 'Excel' | 'Image' | 'Other';
-  category: 'Legal' | 'Finance' | 'Operations' | 'Reports';
+  category: 'Legal' | 'Finance' | 'Operations' | 'Reports' | 'HR' | 'Product & Development' | 'Marketing & Sales' | 'Investor & Fundraising' | 'Research & Insights';
   createdAt: Timestamp;
   url: string;
   storagePath: string;

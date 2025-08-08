@@ -63,19 +63,23 @@ import { getDocuments, addDocument, deleteDocument } from '@/services/documentSe
 import { useAuth } from '@/hooks/useAuth';
 
 const documentSchema = z.object({
-    category: z.enum(['Legal', 'Finance', 'Operations', 'Reports']),
+    category: z.enum(['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights']),
     file: (typeof window === 'undefined' ? z.any() : z.instanceof(FileList)).refine(files => files?.length > 0, 'File is required.'),
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
 
 
-const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports'];
+const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights'];
 
 const rolePermissions: Record<string, Document['category'][]> = {
-    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports'],
-    'cfo@mentorme.com': ['Finance'],
+    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights'],
+    'cfo@mentorme.com': ['Finance', 'Investor & Fundraising'],
     'coo@mentorme.com': ['Operations', 'Legal'],
+    'cto@mentorme.com': ['Product & Development'],
+    'cdo@mentorme.com': ['Research & Insights'],
+    'cmo@mentorme.com': ['Marketing & Sales'],
+    'chro@mentorme.com': ['HR'],
 };
 
 
@@ -146,7 +150,7 @@ export default function DocumentsPage() {
             />
 
             <Tabs defaultValue="all">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="all">All</TabsTrigger>
                 {allCategories.map(cat => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
             </TabsList>
@@ -183,7 +187,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     };
 
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && allowedCategories.length > 0) {
              reset({ category: allowedCategories[0] });
         }
     }, [isOpen, reset, allowedCategories]);
