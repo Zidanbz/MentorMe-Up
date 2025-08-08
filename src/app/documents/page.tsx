@@ -89,6 +89,7 @@ export default function DocumentsPage() {
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const { toast } = useToast();
     const { user } = useAuth();
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const userEmail = user?.email || '';
     const userAllowedCategories = rolePermissions[userEmail] || [];
@@ -122,12 +123,15 @@ export default function DocumentsPage() {
     };
 
     const handleDeleteDocument = async (doc: Document) => {
+        setDeletingId(doc.id);
         try {
             await deleteDocument(doc);
             toast({ title: 'Success', description: 'Document deleted successfully.' });
             fetchDocuments();
         } catch (error) {
              toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete document.' });
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -156,11 +160,11 @@ export default function DocumentsPage() {
             </TabsList>
 
             <TabsContent value="all">
-                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} />
+                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
             </TabsContent>
             {allCategories.map(cat => (
                 <TabsContent key={cat} value={cat}>
-                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} />
+                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
                 </TabsContent>
             ))}
             </Tabs>
@@ -240,7 +244,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     );
 }
 
-function DocumentTable({ documents, onDelete, loading, allowedCategories }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean, allowedCategories: Document['category'][] }) {
+function DocumentTable({ documents, onDelete, loading, allowedCategories, deletingId }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean, allowedCategories: Document['category'][], deletingId: string | null }) {
     
     return (
         <Card>
@@ -277,8 +281,8 @@ function DocumentTable({ documents, onDelete, loading, allowedCategories }: { do
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreVertical className="h-4 w-4" />
+                                                <Button variant="ghost" size="icon" disabled={deletingId === doc.id}>
+                                                   {deletingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
@@ -312,6 +316,14 @@ function DocumentTable({ documents, onDelete, loading, allowedCategories }: { do
 }
 
 function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (doc: Document) => void }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    await onDelete(doc);
+    // No need to set isDeleting to false as the component will be unmounted.
+  }
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -331,11 +343,13 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => onDelete(doc)}
+            onClick={handleDelete}
             className="bg-destructive hover:bg-destructive/90"
+            disabled={isDeleting}
           >
+            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Delete
           </AlertDialogAction>
         </AlertDialogFooter>

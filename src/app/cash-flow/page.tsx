@@ -85,6 +85,7 @@ const transactionCategories: Transaction['category'][] = ['Salary', 'Marketing',
 export default function CashFlowPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -131,11 +132,14 @@ export default function CashFlowPage() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    setDeletingId(id);
     try {
         await deleteTransaction(id);
         fetchTransactions();
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete transaction.' });
+    } finally {
+        setDeletingId(null);
     }
   };
   
@@ -184,13 +188,13 @@ export default function CashFlowPage() {
           </TabsList>
 
           <TabsContent value="all">
-            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
+            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} deletingId={deletingId} />
           </TabsContent>
           <TabsContent value="income">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} deletingId={deletingId} />
           </TabsContent>
           <TabsContent value="expense">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} isCFO={isCFO} deletingId={deletingId} />
           </TabsContent>
         </Tabs>
       </div>
@@ -341,15 +345,7 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
     );
 }
 
-function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean, isCFO: boolean }) {
-    const { toast } = useToast();
-    const handlePermissionDenied = () => {
-        toast({
-            variant: 'destructive',
-            title: 'Permission Denied',
-            description: 'Only the CFO can perform this action.'
-        });
-    }
+function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO, deletingId }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean, isCFO: boolean, deletingId: string | null }) {
 
     return (
         <Card>
@@ -393,8 +389,8 @@ function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO }: { 
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreVertical className="h-4 w-4" />
+                                            <Button variant="ghost" size="icon" disabled={deletingId === t.id}>
+                                                {deletingId === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">

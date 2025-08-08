@@ -41,6 +41,7 @@ export default function ProjectTaskPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -101,32 +102,41 @@ export default function ProjectTaskPage() {
   };
   
   const handleDeleteTask = async (projectId: string, milestoneId: string, taskId: string) => {
+    setProcessingAction(`task-delete-${taskId}`);
     try {
       await deleteTask(projectId, milestoneId, taskId);
       fetchProjects();
       toast({ title: 'Success', description: 'Task deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
+    } finally {
+      setProcessingAction(null);
     }
   }
 
   const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
+    setProcessingAction(`milestone-delete-${milestoneId}`);
     try {
       await deleteMilestone(projectId, milestoneId);
       fetchProjects();
       toast({ title: 'Success', description: 'Milestone deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete milestone.' });
+    } finally {
+      setProcessingAction(null);
     }
   }
 
   const handleDeleteProject = async (projectId: string) => {
+    setProcessingAction(`project-delete-${projectId}`);
     try {
       await deleteProject(projectId);
       fetchProjects();
       toast({ title: 'Success', description: 'Project deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete project.' });
+    } finally {
+      setProcessingAction(null);
     }
   }
 
@@ -168,6 +178,7 @@ export default function ProjectTaskPage() {
                 onDeleteTask={handleDeleteTask}
                 onDeleteMilestone={handleDeleteMilestone}
                 onDeleteProject={() => handleDeleteProject(project.id)}
+                processingAction={processingAction}
               />
             ))}
           </Accordion>
@@ -178,7 +189,7 @@ export default function ProjectTaskPage() {
 }
 
 // Project Components
-function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject }: {
+function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, processingAction }: {
   project: Project,
   onAddMilestone: (data: z.infer<typeof milestoneSchema>) => Promise<boolean>,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
@@ -186,6 +197,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDeleteMilestone: (projectId: string, milestoneId: string) => void,
   onDeleteProject: () => void,
+  processingAction: string | null,
 }) {
   return (
     <Card>
@@ -203,7 +215,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                 { name: 'dueDate', label: 'Due Date', type: 'date' },
               ]}
             />
-          <ProjectActions onDelete={onDeleteProject} />
+          <ProjectActions onDelete={onDeleteProject} isDeleting={processingAction === `project-delete-${project.id}`} />
         </div>
       </CardHeader>
       <CardContent>
@@ -218,6 +230,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
+                    processingAction={processingAction}
                 />
             ))}
            </Accordion>
@@ -229,12 +242,14 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   )
 }
 
-function ProjectActions({ onDelete }: { onDelete: () => void }) {
+function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDeleting: boolean }) {
     return (
         <AlertDialog>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" disabled={isDeleting}>
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <AlertDialogTrigger asChild>
@@ -263,13 +278,14 @@ function ProjectActions({ onDelete }: { onDelete: () => void }) {
 
 
 // Milestone Components
-function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete }: {
+function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
   projectId: string,
   milestone: Milestone,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
+  processingAction: string | null,
 }) {
   const completedTasks = useMemo(() => milestone.tasks ? milestone.tasks.filter(t => t.completed).length : 0, [milestone.tasks]);
   const totalTasks = useMemo(() => milestone.tasks ? milestone.tasks.length : 0, [milestone.tasks]);
@@ -317,7 +333,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                         { name: 'dueDate', label: 'Due Date', type: 'date' },
                     ]}
                 />
-                <MilestoneActions onDelete={onDelete} />
+                <MilestoneActions onDelete={onDelete} isDeleting={processingAction === `milestone-delete-${milestone.id}`} />
             </div>
         </div>
         <div className="space-y-2 mt-4">
@@ -327,6 +343,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     task={task} 
                     onUpdate={(data) => onUpdateTask(projectId, milestone.id, task.id, data)}
                     onDelete={() => onDeleteTask(projectId, milestone.id, task.id)}
+                    isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
              {(!milestone.tasks || milestone.tasks.length === 0) && <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
@@ -336,12 +353,14 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   )
 }
 
-function MilestoneActions({ onDelete }: { onDelete: () => void }) {
+function MilestoneActions({ onDelete, isDeleting }: { onDelete: () => void, isDeleting: boolean }) {
     return (
         <AlertDialog>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" disabled={isDeleting}>
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                      <AlertDialogTrigger asChild>
@@ -368,7 +387,7 @@ function MilestoneActions({ onDelete }: { onDelete: () => void }) {
 }
 
 // Task Components
-function TaskItem({ task, onUpdate, onDelete }: { task: Task, onUpdate: (data: Partial<Task>) => void, onDelete: () => void }) {
+function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpdate: (data: Partial<Task>) => void, onDelete: () => void, isDeleting: boolean }) {
     
     const dueDate = useMemo(() => {
         if (!task.dueDate) return null;
@@ -389,17 +408,19 @@ function TaskItem({ task, onUpdate, onDelete }: { task: Task, onUpdate: (data: P
                     Due: {format(dueDate, 'MMM d')}
                 </span>
             )}
-            <TaskActions onDelete={onDelete}/>
+            <TaskActions onDelete={onDelete} isDeleting={isDeleting} />
         </div>
     )
 }
 
-function TaskActions({ onDelete }: { onDelete: () => void }) {
+function TaskActions({ onDelete, isDeleting }: { onDelete: () => void, isDeleting: boolean }) {
     return (
         <AlertDialog>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled={isDeleting}>
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                    </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                     <AlertDialogTrigger asChild>

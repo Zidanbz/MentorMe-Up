@@ -68,6 +68,22 @@ export default function UserGuidePage() {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+              <AccordionItem value="item-5">
+                <AccordionTrigger>Manajemen Proyek & Tugas</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pl-2">
+                    <p>Fitur ini membantu Anda mengorganisir alur kerja dengan membuat proyek, milestone, dan tugas-tugas yang terkait.</p>
+                    <h4 className="font-semibold pt-2">Cara Menggunakan:</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>Buat Proyek:</strong> Klik tombol "Add Project" untuk membuat sebuah proyek baru.</li>
+                      <li><strong>Tambah Milestone:</strong> Di dalam setiap proyek, klik "Add Milestone" untuk membuat tahapan-tahapan penting. Anda juga bisa menetapkan tanggal jatuh tempo untuk setiap milestone.</li>
+                      <li><strong>Tambah Tugas:</strong> Di dalam setiap milestone, klik "Add Task" untuk menambahkan tugas-tugas spesifik. Anda bisa memberikan deskripsi dan tanggal jatuh tempo untuk setiap tugas.</li>
+                      <li><strong>Selesaikan Tugas:</strong> Centang kotak di samping nama tugas untuk menandainya sebagai selesai. Progres bar milestone akan diperbarui secara otomatis.</li>
+                       <li><strong>Kelola Item:</strong> Gunakan menu tiga titik di samping setiap proyek, milestone, atau tugas untuk mengedit atau menghapusnya.</li>
+                    </ul>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
               <AccordionItem value="item-4">
                 <AccordionTrigger>Manajemen Akun</AccordionTrigger>
                 <AccordionContent>
