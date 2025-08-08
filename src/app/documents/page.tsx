@@ -75,8 +75,7 @@ const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations',
 const rolePermissions: Record<string, Document['category'][]> = {
     'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports'],
     'cfo@mentorme.com': ['Finance'],
-    'coo@mentorme.com': ['Operations'],
-    'legal@mentorme.com': ['Legal'],
+    'coo@mentorme.com': ['Operations', 'Legal'],
 };
 
 
