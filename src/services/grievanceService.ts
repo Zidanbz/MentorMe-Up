@@ -34,16 +34,22 @@ export const getGrievances = async (user: { userId: string, userEmail: string })
   }
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(
-    (doc) => ({ ...doc.data(), id: doc.id } as Grievance)
-  );
+  // Convert Timestamp to Date for serialization
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: (data.createdAt as Timestamp).toDate(),
+    } as Grievance;
+  });
 };
 
 export const addGrievance = async (
   data: GrievanceClientData,
   user: { userId: string, userEmail: string }
 ): Promise<void> => {
-  if (!user || !user.userId) {
+  if (!user || !user.userId || !user.userEmail) {
     throw new Error('User not authenticated');
   }
 
