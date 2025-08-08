@@ -148,8 +148,7 @@ export default function GrievancesPage() {
                         <CardContent>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
                         </CardContent>
-                        <CardFooter className="flex justify-between items-center">
-                             <Badge variant={g.status === 'Open' ? 'destructive' : 'default'}>{g.status}</Badge>
+                        <CardFooter className="flex justify-end items-center">
                              {g.fileUrl && (
                                 <Button asChild variant="outline" size="sm">
                                     <a href={g.fileUrl} target="_blank" rel="noopener noreferrer">
@@ -166,68 +165,5 @@ export default function GrievancesPage() {
 
       </div>
     </AppLayout>
-  );
-}
-
-function AddGrievanceDialog({ isOpen, setIsOpen, onSubmit }: { isOpen: boolean, setIsOpen: (open: boolean) => void, onSubmit: (data: GrievanceFormData) => Promise<void> }) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<GrievanceFormData>({
-    resolver: zodResolver(grievanceSchema),
-  });
-
-  const handleFormSubmit = async (data: GrievanceFormData) => {
-    await onSubmit(data);
-  };
-  
-  useEffect(() => {
-    if (!isOpen) {
-        reset();
-    }
-  }, [isOpen, reset]);
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Buat Pengaduan
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
-        <form onSubmit={handleSubmit(handleFormSubmit)}>
-          <DialogHeader>
-            <DialogTitle>Buat Pengaduan Baru</DialogTitle>
-            <DialogDescription>
-              Jelaskan masalah atau masukan Anda. CEO akan meninjau semua pengaduan.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subjek</Label>
-              <Input id="subject" {...register('subject')} />
-              {errors.subject && <p className="text-red-500 text-xs">{errors.subject.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Deskripsi</Label>
-              <Textarea id="description" {...register('description')} className="min-h-[120px]" />
-              {errors.description && <p className="text-red-500 text-xs">{errors.description.message}</p>}
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="file">Lampiran (Opsional)</Label>
-                <div className="flex items-center gap-2">
-                    <Paperclip className="h-4 w-4 text-muted-foreground" />
-                    <Input id="file" type="file" {...register('file')} />
-                </div>
-                {errors.file && <p className="text-red-500 text-xs">{typeof errors.file.message === 'string' ? errors.file.message : 'Invalid file'}</p>}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Kirim
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
