@@ -192,7 +192,7 @@ function AddGrievanceDialog({ isOpen, setIsOpen, onSubmit }: { isOpen: boolean, 
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                     <Input id="file" type="file" {...register('file')} />
                 </div>
-                {errors.file && <p className="text-red-500 text-xs">{errors.file.message?.toString()}</p>}
+                {errors.file && <p className="text-red-500 text-xs">{typeof errors.file.message === 'string' ? errors.file.message : 'Invalid file'}</p>}
             </div>
           </div>
           <DialogFooter>
