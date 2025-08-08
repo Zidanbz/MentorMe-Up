@@ -55,6 +55,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument } from '@/services/documentService';
@@ -220,10 +221,8 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
 }
 
 function DocumentTable({ documents, onDelete, loading }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean }) {
-    const [docToDelete, setDocToDelete] = useState<Document | null>(null);
-
+    
     return (
-        <>
         <Card>
             <Table>
                 <TableHeader>
@@ -254,18 +253,39 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
                                 <TableCell>{doc.category}</TableCell>
                                 <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
                                 <TableCell className="text-right">
-                                   <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
-                                            <DropdownMenuItem asChild><a href={doc.url} download={doc.name}><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
-                                             <DropdownMenuItem className="text-red-600" onClick={() => setDocToDelete(doc)}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                   <AlertDialog>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
+                                                <DropdownMenuItem asChild><a href={doc.url} download={doc.name} className="flex items-center"><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the document from storage.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction 
+                                                    onClick={() => onDelete(doc)}
+                                                    className="bg-destructive hover:bg-destructive/90"
+                                                >
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </TableCell>
                             </TableRow>
                         ))
@@ -273,31 +293,6 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
                 </TableBody>
             </Table>
         </Card>
-        <AlertDialog open={!!docToDelete} onOpenChange={(open) => !open && setDocToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the document from storage.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setDocToDelete(null)}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                        onClick={() => {
-                            if (docToDelete) {
-                                onDelete(docToDelete)
-                            }
-                            setDocToDelete(null)
-                        }} 
-                        className="bg-destructive hover:bg-destructive/90"
-                    >
-                        Delete
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-        </>
     );
 }
 
