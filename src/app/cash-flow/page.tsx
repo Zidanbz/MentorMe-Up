@@ -62,6 +62,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transactionService';
 
@@ -107,7 +108,6 @@ export default function CashFlowPage() {
   const handleAddTransaction = async (data: TransactionFormData) => {
     try {
       await addTransaction(data);
-      toast({ title: 'Success', description: 'Transaction added successfully.' });
       fetchTransactions();
       setIsDialogOpen(false);
     } catch (error) {
@@ -119,7 +119,6 @@ export default function CashFlowPage() {
       if (!editingTransaction?.id) return;
     try {
       await updateTransaction(editingTransaction.id, data);
-      toast({ title: 'Success', description: 'Transaction updated successfully.' });
       setEditingTransaction(null);
       fetchTransactions();
       setIsDialogOpen(false);
@@ -131,7 +130,6 @@ export default function CashFlowPage() {
   const handleDeleteTransaction = async (id: string) => {
     try {
         await deleteTransaction(id);
-        toast({ title: 'Success', description: 'Transaction deleted successfully.' });
         fetchTransactions();
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete transaction.' });
