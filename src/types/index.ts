@@ -31,7 +31,7 @@ export type Task = {
   id: string;
   name: string;
   description?: string;
-  dueDate?: Timestamp;
+  dueDate?: Timestamp | Date;
   completed: boolean;
   assignedTo?: string; // User ID
   subTasks?: Task[]; // Nested sub-tasks
@@ -41,7 +41,7 @@ export type Task = {
 export type Milestone = {
   id: string;
   name: string;
-  dueDate?: Timestamp;
+  dueDate?: Timestamp | Date;
   tasks: Task[];
 };
 
@@ -49,4 +49,5 @@ export type Project = {
   id: string;
   name: string;
   milestones: Milestone[];
+  createdAt: Timestamp;
 };

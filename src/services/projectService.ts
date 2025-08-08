@@ -11,27 +11,25 @@ import {
     query, 
     orderBy,
     getDoc,
-    runTransaction
+    runTransaction,
+    serverTimestamp
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 const projectsCollection = collection(db, 'projects');
 
 // Helper to convert Firestore Timestamps in nested objects
-const convertTimestamps = (data: any): any => {
-    if (data?.toDate) {
-        return data; // It's already a Timestamp, return as is.
-    }
+const convertDateToTimestamp = (data: any): any => {
     if (data instanceof Date) {
         return Timestamp.fromDate(data);
     }
     if (Array.isArray(data)) {
-        return data.map(convertTimestamps);
+        return data.map(convertDateToTimestamp);
     }
-    if (typeof data === 'object' && data !== null) {
+    if (typeof data === 'object' && data !== null && !(data instanceof Timestamp)) {
         const res: { [key: string]: any } = {};
         for (const key in data) {
-            res[key] = convertTimestamps(data[key]);
+            res[key] = convertDateToTimestamp(data[key]);
         }
         return res;
     }
@@ -40,19 +38,25 @@ const convertTimestamps = (data: any): any => {
 
 // Project functions
 export const getProjects = async (): Promise<Project[]> => {
-    const q = query(projectsCollection, orderBy('name'));
+    const q = query(projectsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
 };
 
-export const addProject = async (project: Omit<Project, 'id'>): Promise<Project> => {
-    const docRef = await addDoc(projectsCollection, project);
-    return { ...project, id: docRef.id };
+export const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'milestones'>): Promise<Project> => {
+    const newProject = {
+        ...project,
+        milestones: [],
+        createdAt: serverTimestamp(),
+    }
+    const docRef = await addDoc(projectsCollection, newProject);
+    const docSnap = await getDoc(docRef);
+    return { ...docSnap.data(), id: docRef.id } as Project;
 };
 
 export const updateProject = async (id: string, project: Partial<Project>): Promise<void> => {
     const docRef = doc(db, 'projects', id);
-    await updateDoc(docRef, project);
+    await updateDoc(docRef, convertDateToTimestamp(project));
 };
 
 export const deleteProject = async (id: string): Promise<void> => {
@@ -62,19 +66,19 @@ export const deleteProject = async (id: string): Promise<void> => {
 
 
 // Milestone functions
-export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'dueDate'> & { dueDate?: Date }): Promise<void> => {
+export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks'>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
-            throw "Project does not exist!";
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
         const newMilestone: Milestone = {
             ...milestone,
             id: uuidv4(),
-            dueDate: milestone.dueDate ? Timestamp.fromDate(milestone.dueDate) : undefined,
             tasks: [],
+            dueDate: milestone.dueDate ? Timestamp.fromDate(milestone.dueDate as any) : undefined,
         };
         const newMilestones = [...projectData.milestones, newMilestone];
         transaction.update(projectRef, { milestones: newMilestones });
@@ -86,7 +90,7 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
-            throw "Project does not exist!";
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
         const newMilestones = projectData.milestones.filter(m => m.id !== milestoneId);
@@ -96,12 +100,12 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
 
 
 // Task functions
-export const addTask = async (projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'dueDate'> & { dueDate?: Date }): Promise<void> => {
+export const addTask = async (projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed'>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
-            throw "Project does not exist!";
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
         
@@ -109,7 +113,7 @@ export const addTask = async (projectId: string, milestoneId: string, task: Omit
             ...task,
             id: uuidv4(),
             completed: false,
-            dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate) : undefined,
+            dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate as any) : undefined,
         }
 
         const newMilestones = projectData.milestones.map(m => {
@@ -128,7 +132,7 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
-            throw "Project does not exist!";
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
 
@@ -136,7 +140,7 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return convertTimestamps({ ...t, ...taskUpdate });
+                        return convertDateToTimestamp({ ...t, ...taskUpdate });
                     }
                     return t;
                 });
@@ -145,7 +149,7 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
             return m;
         });
 
-        transaction.update(projectRef, { milestones: newMilestones });
+        transaction.update(projectRef, { milestones: convertDateToTimestamp(newMilestones) });
     });
 };
 
@@ -154,7 +158,7 @@ export const deleteTask = async (projectId: string, milestoneId: string, taskId:
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
-            throw "Project does not exist!";
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
 

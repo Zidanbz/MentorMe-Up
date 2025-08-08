@@ -23,6 +23,7 @@ import type { Project, Milestone, Task } from '@/types';
 import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
 
 // Schemas
 const projectSchema = z.object({ name: z.string().min(1, "Project name is required") });
@@ -56,7 +57,7 @@ export default function ProjectTaskPage() {
 
   const handleAddProject = async (data: z.infer<typeof projectSchema>) => {
     try {
-      await addProject({ name: data.name, milestones: [] });
+      await addProject({ name: data.name });
       fetchProjects();
       return true;
     } catch (error) {
@@ -67,7 +68,7 @@ export default function ProjectTaskPage() {
 
   const handleAddMilestone = async (projectId: string, data: z.infer<typeof milestoneSchema>) => {
     try {
-      await addMilestone(projectId, { name: data.name, tasks: [] });
+      await addMilestone(projectId, { name: data.name });
       fetchProjects();
       return true;
     } catch (error) {
@@ -78,7 +79,7 @@ export default function ProjectTaskPage() {
 
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
     try {
-      await addTask(projectId, milestoneId, { ...data, completed: false });
+      await addTask(projectId, milestoneId, { ...data });
       fetchProjects();
       return true;
     } catch (error) {
@@ -200,7 +201,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
         </div>
       </CardHeader>
       <CardContent>
-        {project.milestones.length > 0 ? (
+        {project.milestones && project.milestones.length > 0 ? (
            <Accordion type="multiple">
             {project.milestones.map(milestone => (
                 <MilestoneItem
@@ -264,15 +265,16 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
 }) {
-  const completedTasks = useMemo(() => milestone.tasks.filter(t => t.completed).length, [milestone.tasks]);
-  const progress = milestone.tasks.length > 0 ? (completedTasks / milestone.tasks.length) * 100 : 0;
+  const completedTasks = useMemo(() => milestone.tasks ? milestone.tasks.filter(t => t.completed).length : 0, [milestone.tasks]);
+  const totalTasks = useMemo(() => milestone.tasks ? milestone.tasks.length : 0, [milestone.tasks]);
+  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   return (
     <AccordionItem value={milestone.id}>
       <AccordionTrigger>
         <div className="flex-1 flex items-center justify-between pr-4">
             <span>{milestone.name}</span>
-            <span className="text-sm text-muted-foreground">{completedTasks} / {milestone.tasks.length} tasks completed</span>
+            <span className="text-sm text-muted-foreground">{completedTasks} / {totalTasks} tasks completed</span>
         </div>
       </AccordionTrigger>
       <AccordionContent className="pl-4">
@@ -297,7 +299,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
             </div>
         </div>
         <div className="space-y-2 mt-4">
-            {milestone.tasks.map(task => (
+            {milestone.tasks && milestone.tasks.map(task => (
                 <TaskItem 
                     key={task.id} 
                     task={task} 
@@ -305,7 +307,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     onDelete={() => onDeleteTask(projectId, milestone.id, task.id)}
                 />
             ))}
-             {milestone.tasks.length === 0 && <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
+             {(!milestone.tasks || milestone.tasks.length === 0) && <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
         </div>
       </AccordionContent>
     </AccordionItem>
@@ -345,15 +347,24 @@ function MilestoneActions({ onDelete }: { onDelete: () => void }) {
 
 // Task Components
 function TaskItem({ task, onUpdate, onDelete }: { task: Task, onUpdate: (data: Partial<Task>) => void, onDelete: () => void }) {
+    
+    const dueDate = useMemo(() => {
+        if (!task.dueDate) return null;
+        if (task.dueDate instanceof Timestamp) {
+            return task.dueDate.toDate();
+        }
+        return task.dueDate as Date;
+    }, [task.dueDate]);
+
     return (
         <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
             <Checkbox id={`task-${task.id}`} checked={task.completed} onCheckedChange={(checked) => onUpdate({ completed: !!checked })} />
             <label htmlFor={`task-${task.id}`} className={cn("flex-1 text-sm", task.completed && "line-through text-muted-foreground")}>
                 {task.name}
             </label>
-            {task.dueDate && (
+            {dueDate && (
                 <span className="text-xs text-muted-foreground">
-                    Due: {format(task.dueDate.toDate(), 'MMM d')}
+                    Due: {format(dueDate, 'MMM d')}
                 </span>
             )}
             <TaskActions onDelete={onDelete}/>
@@ -403,7 +414,7 @@ type FormDialogProps = {
 function FormDialog({ trigger, title, description, schema, onSubmit, fields }: FormDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm({
-    resolver: zodResolver(schema)
+    resolver: zodResolver(schema),
   });
 
   const handleFormSubmit = async (data: any) => {
@@ -413,6 +424,12 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
       reset();
     }
   };
+
+  useEffect(() => {
+    if (!isOpen) {
+        reset();
+    }
+  }, [isOpen, reset]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
