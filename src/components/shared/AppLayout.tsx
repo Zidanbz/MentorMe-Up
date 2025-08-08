@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound } from 'lucide-react';
+import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '../ui/button';
@@ -41,6 +41,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
+  { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
