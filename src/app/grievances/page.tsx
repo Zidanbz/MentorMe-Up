@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppLayout } from '@/components/shared/AppLayout';
@@ -43,7 +42,7 @@ const grievanceSchema = z.object({
 
 type GrievanceFormData = z.infer<typeof grievanceSchema>;
 
-function AddGrievanceDialog() {
+function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -78,8 +77,7 @@ function AddGrievanceDialog() {
       toast({ title: 'Success', description: 'Your grievance has been submitted.' });
       setIsDialogOpen(false);
       reset();
-      // This will trigger a re-fetch in the parent component if it's listening
-      window.dispatchEvent(new Event('grievanceSubmitted'));
+      onGrievanceAdded();
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit grievance.';
@@ -142,7 +140,11 @@ export default function GrievancesPage() {
   const isCEO = user?.email === 'ceo@mentorme.com';
 
   const fetchGrievances = async () => {
-    if (!user?.uid || !user?.email) return;
+    if (!user?.uid || !user?.email) {
+        // This case should ideally not happen if called correctly from useEffect
+        setLoading(false);
+        return;
+    }
 
     try {
       setLoading(true);
@@ -159,11 +161,6 @@ export default function GrievancesPage() {
     if (user && user.uid && user.email) {
       fetchGrievances();
     }
-     // Listen for custom event to re-fetch
-     window.addEventListener('grievanceSubmitted', fetchGrievances);
-     return () => {
-       window.removeEventListener('grievanceSubmitted', fetchGrievances);
-     };
   }, [user]);
 
 
@@ -182,7 +179,7 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-           {!isCEO && <AddGrievanceDialog />}
+           {!isCEO && <AddGrievanceDialog onGrievanceAdded={fetchGrievances} />}
         </div>
         
         {grievances.length === 0 && (
@@ -207,7 +204,8 @@ export default function GrievancesPage() {
                         <CardContent>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
                         </CardContent>
-                        <CardFooter className="flex justify-end items-center">
+                        <CardFooter className="flex justify-between items-center">
+                            <div></div>
                              {g.fileUrl && (
                                 <Button asChild variant="outline" size="sm">
                                     <a href={g.fileUrl} target="_blank" rel="noopener noreferrer">
