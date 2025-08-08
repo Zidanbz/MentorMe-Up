@@ -10,12 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RecentActivity } from '@/types';
 
 const chartData = [
-  { month: 'January', income: 18600, expense: 8000 },
-  { month: 'February', income: 30500, expense: 12900 },
-  { month: 'March', income: 23700, expense: 15200 },
-  { month: 'April', income: 27800, expense: 19800 },
-  { month: 'May', income: 18900, expense: 11000 },
-  { month: 'June', income: 23900, expense: 17000 },
+  { month: 'January', income: 18600000, expense: 8000000 },
+  { month: 'February', income: 30500000, expense: 12900000 },
+  { month: 'March', income: 23700000, expense: 15200000 },
+  { month: 'April', income: 27800000, expense: 19800000 },
+  { month: 'May', income: 18900000, expense: 11000000 },
+  { month: 'June', income: 23900000, expense: 17000000 },
 ];
 
 const chartConfig = {
@@ -31,12 +31,21 @@ const chartConfig = {
 
 const recentActivities: RecentActivity[] = [
     { id: '1', user: 'CEO', avatar: 'https://placehold.co/40x40.png', action: 'Uploaded "Q2 Financials.pdf"', timestamp: '2 hours ago' },
-    { id: '2', user: 'CFO', avatar: 'https://placehold.co/40x40.png', action: 'Added an expense of $2,500 for Marketing', timestamp: '5 hours ago' },
+    { id: '2', user: 'CFO', avatar: 'https://placehold.co/40x40.png', action: 'Added an expense of Rp 2,500,000 for Marketing', timestamp: '5 hours ago' },
     { id: '3', user: 'COO', avatar: 'https://placehold.co/40x40.png', action: 'Downloaded "Operational_Plan_v3.docx"', timestamp: '1 day ago' },
     { id: '4', user: 'CTO', avatar: 'https://placehold.co/40x40.png', action: 'Uploaded "Tech_Roadmap.pdf"', timestamp: '2 days ago' },
 ];
 
 export default function DashboardPage() {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(value);
+  }
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
@@ -44,7 +53,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <DashboardCard
             title="Current Cash Balance"
-            value="$45,231.89"
+            value={formatCurrency(45231890)}
             icon={Banknote}
             details="+20.1% from last month"
             change="up"
@@ -79,8 +88,8 @@ export default function DashboardPage() {
                 <ResponsiveContainer>
                   <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 0 }}>
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
-                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                    <YAxis tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(value) => `Rp${Number(value) / 1000000}jt`} />
+                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" formatter={(value) => formatCurrency(Number(value))} />} />
                     <Bar dataKey="income" fill="var(--color-income)" radius={4} />
                     <Bar dataKey="expense" fill="var(--color-expense)" radius={4} />
                   </BarChart>

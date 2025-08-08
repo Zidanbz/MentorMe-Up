@@ -50,11 +50,11 @@ import {
   } from "@/components/ui/dropdown-menu"
 
 const transactions: Transaction[] = [
-    { id: '1', type: 'Income', amount: 5000, category: 'Salary', description: 'Monthly Salary', date: new Date(2023, 5, 1) },
-    { id: '2', type: 'Expense', amount: 2500, category: 'Marketing', description: 'Social Media Campaign', date: new Date(2023, 5, 5) },
-    { id: '3', type: 'Income', amount: 1200, category: 'Investment', description: 'Stock Dividend', date: new Date(2023, 5, 10) },
-    { id: '4', type: 'Expense', amount: 300, category: 'Operations', description: 'Office Supplies', date: new Date(2023, 5, 12) },
-    { id: '5', type: 'Expense', amount: 750, category: 'Operations', description: 'Cloud Server Hosting', date: new Date(2023, 5, 15) },
+    { id: '1', type: 'Income', amount: 5000000, category: 'Salary', description: 'Monthly Salary', date: new Date(2023, 5, 1) },
+    { id: '2', type: 'Expense', amount: 2500000, category: 'Marketing', description: 'Social Media Campaign', date: new Date(2023, 5, 5) },
+    { id: '3', type: 'Income', amount: 1200000, category: 'Investment', description: 'Stock Dividend', date: new Date(2023, 5, 10) },
+    { id: '4', type: 'Expense', amount: 300000, category: 'Operations', description: 'Office Supplies', date: new Date(2023, 5, 12) },
+    { id: '5', type: 'Expense', amount: 750000, category: 'Operations', description: 'Cloud Server Hosting', date: new Date(2023, 5, 15) },
 ];
 
 const transactionCategories: Transaction['category'][] = ['Salary', 'Marketing', 'Investment', 'Operations', 'Other'];
@@ -84,7 +84,7 @@ export default function CashFlowPage() {
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="amount" className="text-right">Amount</Label>
-                        <Input id="amount" type="number" placeholder="$0.00" className="col-span-3" />
+                        <Input id="amount" type="number" placeholder="Rp 0" className="col-span-3" />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="category" className="text-right">Category</Label>
@@ -182,7 +182,7 @@ function TransactionTable({ transactions }: { transactions: Transaction[] }) {
                             </TableCell>
                             <TableCell>{t.category}</TableCell>
                             <TableCell>{format(t.date, 'MMM d, yyyy')}</TableCell>
-                            <TableCell className="text-right font-mono">${t.amount.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono">{t.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
                             <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
