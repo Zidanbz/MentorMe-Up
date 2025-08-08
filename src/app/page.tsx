@@ -11,7 +11,7 @@ export default function LoginPage() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Layers3 className="h-8 w-8" />
             </div>
-            <CardTitle className="text-3xl font-bold text-primary">InSync Hub</CardTitle>
+            <CardTitle className="text-3xl font-bold text-primary">mentorme Up</CardTitle>
             <CardDescription>Welcome back! Please sign in to continue.</CardDescription>
           </CardHeader>
           <CardContent>
