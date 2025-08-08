@@ -52,7 +52,8 @@ export default function GrievancesPage() {
 
   useEffect(() => {
     const fetchGrievances = async () => {
-      if (!user || !user.email) return;
+      if (!user?.uid || !user?.email) return;
+
       try {
         setLoading(true);
         const data = await getGrievances({ userId: user.uid, userEmail: user.email });
@@ -64,7 +65,7 @@ export default function GrievancesPage() {
       }
     };
 
-    if (user?.uid && user?.email) {
+    if (user) {
       fetchGrievances();
     }
   }, [user, toast]);
@@ -122,11 +123,6 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-          <AddGrievanceDialog
-            isOpen={isDialogOpen}
-            setIsOpen={setIsDialogOpen}
-            onSubmit={handleAddGrievance}
-          />
         </div>
         
         {grievances.length === 0 ? (
