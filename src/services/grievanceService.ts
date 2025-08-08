@@ -1,6 +1,6 @@
 'use server';
 
-import { db, storage, auth } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import type { Grievance } from '@/types';
 import {
   collection,
@@ -15,19 +15,18 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const grievanceCollection = collection(db, 'grievances');
 
-export const getGrievances = async (): Promise<Grievance[]> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error('User not authenticated');
+export const getGrievances = async (user: { userId: string, userEmail: string }): Promise<Grievance[]> => {
+  if (!user || !user.userId) throw new Error('User not authenticated');
 
   let q;
-  if (user.email === 'ceo@mentorme.com') {
+  if (user.userEmail === 'ceo@mentorme.com') {
     // CEO sees all grievances
     q = query(grievanceCollection, orderBy('createdAt', 'desc'));
   } else {
     // Other users see only their own grievances
     q = query(
       grievanceCollection,
-      where('userId', '==', user.uid),
+      where('userId', '==', user.userId),
       orderBy('createdAt', 'desc')
     );
   }
@@ -39,10 +38,12 @@ export const getGrievances = async (): Promise<Grievance[]> => {
 };
 
 export const addGrievance = async (
-  data: { subject: string; description: string; file?: FileList }
+  data: { subject: string; description: string; file?: FileList },
+  user: { userId: string, userEmail: string }
 ): Promise<void> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error('User not authenticated');
+  if (!user || !user.userId) {
+    throw new Error('User not authenticated');
+  }
 
   let fileUrl: string | undefined = undefined;
   let filePath: string | undefined = undefined;
@@ -50,7 +51,7 @@ export const addGrievance = async (
   // Check if a file is present and has content
   if (data.file && data.file.length > 0) {
     const file = data.file[0];
-    const storagePath = `grievances/${user.uid}/${Date.now()}_${file.name}`;
+    const storagePath = `grievances/${user.userId}/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, storagePath);
 
     await uploadBytes(storageRef, file);
@@ -59,8 +60,8 @@ export const addGrievance = async (
   }
 
   const newGrievance = {
-    userId: user.uid,
-    userEmail: user.email || 'Unknown',
+    userId: user.userId,
+    userEmail: user.userEmail,
     subject: data.subject,
     description: data.description,
     fileUrl,

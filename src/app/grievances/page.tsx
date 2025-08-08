@@ -25,7 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Loader2, Paperclip, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect } from 'react';
@@ -51,9 +51,10 @@ export default function GrievancesPage() {
   const isCEO = user?.email === 'ceo@mentorme.com';
 
   const fetchGrievances = async () => {
+    if (!user) return;
     try {
       setLoading(true);
-      const data = await getGrievances();
+      const data = await getGrievances({ userId: user.uid, userEmail: user.email || '' });
       setGrievances(data);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
@@ -69,13 +70,18 @@ export default function GrievancesPage() {
   }, [user]);
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to submit a grievance.' });
+        return;
+    }
     try {
-      await addGrievance(data);
+      await addGrievance(data, { userId: user.uid, userEmail: user.email || 'Unknown' });
       toast({ title: 'Success', description: 'Your grievance has been submitted.' });
       fetchGrievances();
       setIsDialogOpen(false);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to submit grievance.' });
+        const errorMessage = error instanceof Error ? error.message : 'Failed to submit grievance.';
+        toast({ variant: 'destructive', title: 'Error', description: errorMessage });
     }
   };
 

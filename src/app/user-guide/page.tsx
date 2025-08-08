@@ -84,6 +84,20 @@ export default function UserGuidePage() {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+              <AccordionItem value="item-6">
+                <AccordionTrigger>Pengaduan Anggota</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pl-2">
+                    <p>Fitur ini memungkinkan anggota tim untuk menyampaikan keluhan atau masukan secara rahasia. Hanya CEO yang dapat melihat semua pengaduan.</p>
+                    <h4 className="font-semibold pt-2">Cara Menggunakan:</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>Membuat Pengaduan:</strong> Klik tombol "Buat Pengaduan". Isi subjek, deskripsi, dan lampirkan file jika perlu.</li>
+                      <li><strong>Melihat Pengaduan (Anggota):</strong> Anda hanya dapat melihat daftar pengaduan yang telah Anda kirimkan sendiri.</li>
+                      <li><strong>Melihat Pengaduan (CEO):</strong> CEO dapat melihat semua pengaduan yang dikirim oleh seluruh anggota tim untuk ditindaklanjuti.</li>
+                    </ul>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
               <AccordionItem value="item-4">
                 <AccordionTrigger>Manajemen Akun</AccordionTrigger>
                 <AccordionContent>
