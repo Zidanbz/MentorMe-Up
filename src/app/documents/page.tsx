@@ -40,6 +40,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
   } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +74,7 @@ const categories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'R
 export default function DocumentsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const { toast } = useToast();
 
     const fetchDocuments = async () => {
@@ -97,7 +98,7 @@ export default function DocumentsPage() {
             await addDocument(data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments();
-            setIsDialogOpen(false);
+            setIsUploadDialogOpen(false);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
         }
@@ -118,15 +119,15 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Documents</h1>
-                <Button onClick={() => setIsDialogOpen(true)}>
+                <Button onClick={() => setIsUploadDialogOpen(true)}>
                     <FileUp className="mr-2 h-4 w-4" />
                     Upload Document
                 </Button>
             </div>
             
             <UploadDocumentDialog 
-                isOpen={isDialogOpen} 
-                setIsOpen={setIsDialogOpen} 
+                isOpen={isUploadDialogOpen} 
+                setIsOpen={setIsUploadDialogOpen} 
                 onAddDocument={handleAddDocument}
             />
 
@@ -260,30 +261,18 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
-                                            <DropdownMenuItem asChild><a href={doc.url} download={doc.name} className="flex items-center"><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                        This action cannot be undone. This will permanently delete the document from storage.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction 
-                                                            onClick={() => onDelete(doc)}
-                                                            className="bg-destructive hover:bg-destructive/90"
-                                                        >
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            <DropdownMenuItem asChild>
+                                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
+                                                    <Eye className="mr-2 h-4 w-4" />Preview
+                                                </a>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                <a href={doc.url} download={doc.name} className="flex items-center cursor-pointer">
+                                                    <Download className="mr-2 h-4 w-4" />Download
+                                                </a>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DeleteDocumentMenuItem doc={doc} onDelete={onDelete} />
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -295,6 +284,37 @@ function DocumentTable({ documents, onDelete, loading }: { documents: Document[]
         </Card>
     );
 }
+
+function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (doc: Document) => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-red-600">
+          <Trash className="mr-2 h-4 w-4" />
+          <span>Delete</span>
+        </div>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the document from storage.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => onDelete(doc)}
+            className="bg-destructive hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 
 // A wrapper card for the table to provide a consistent border/shadow
 function Card({children}: {children: React.ReactNode}) {
