@@ -26,3 +26,27 @@ export type RecentActivity = {
   action: string;
   timestamp: string;
 };
+
+export type Task = {
+  id: string;
+  name: string;
+  description?: string;
+  dueDate?: Timestamp;
+  completed: boolean;
+  assignedTo?: string; // User ID
+  subTasks?: Task[]; // Nested sub-tasks
+  category?: 'Marketing' | 'Finance' | 'Tech' | 'Operations' | 'Other'; // Label warna
+};
+
+export type Milestone = {
+  id: string;
+  name: string;
+  dueDate?: Timestamp;
+  tasks: Task[];
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  milestones: Milestone[];
+};

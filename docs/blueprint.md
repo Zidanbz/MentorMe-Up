@@ -8,6 +8,18 @@
 - Voice Input for Transactions: Use the browser's Speech to Text API as a tool with Indonesian language support to allow users to input income/expense form data using voice.
 - User Management: Firebase Authentication with Email/Password and Google Sign-In. Roles: Admin, CEO, CTO, CDO, COO, CMO, CHRO, CFO & Member. Each role accesses a specific workspace, with data access requests possible. CEO has full access.
 
+## Task & Project Management:
+- Ringkasan semua proyek: status (On Track, At Risk, Overdue)
+- Task mendesak hari ini + deadline terdekat
+- Progress bar untuk tiap proyek
+- Struktur Proyek: Project → Milestone → Task
+- Dukungan untuk sub-task di dalam task
+- Label warna untuk kategori (Marketing, Finance, Tech, dsb.)
+- Fungsionalitas Utama:
+- Integrasi dengan Fitur Lain:
+- Peran Pengguna dan Akses:
+- Antarmuka Pengguna (UI):
+
 ## Style Guidelines:
 
 - Primary color: Deep blue (#30475E) for a professional and trustworthy feel.
