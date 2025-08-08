@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Mic, Square, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { transcribeTransaction } from '@/ai/flows/transcribe-transaction';
+import { cn } from '@/lib/utils';
 
 type VoiceInputProps = {
   onTranscription: (text: string) => void;
