@@ -50,23 +50,21 @@ export default function GrievancesPage() {
   const { user } = useAuth();
   const isCEO = user?.email === 'ceo@mentorme.com';
 
-  const fetchGrievances = async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      const data = await getGrievances({ userId: user.uid, userEmail: user.email || '' });
-      setGrievances(data);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if(user) {
-        fetchGrievances();
-    }
+    const fetchGrievances = async () => {
+      if (!user || !user.email) return;
+      try {
+        setLoading(true);
+        const data = await getGrievances({ userId: user.uid, userEmail: user.email });
+        setGrievances(data);
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGrievances();
   }, [user]);
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
@@ -94,7 +92,13 @@ export default function GrievancesPage() {
 
         await addGrievance(grievanceData, { userId: user.uid, userEmail: user.email || 'Unknown' });
         toast({ title: 'Success', description: 'Your grievance has been submitted.' });
-        fetchGrievances();
+        
+        // Refetch grievances after submission
+        if (user.email) {
+            const updatedGrievances = await getGrievances({ userId: user.uid, userEmail: user.email });
+            setGrievances(updatedGrievances);
+        }
+
         setIsDialogOpen(false);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to submit grievance.';

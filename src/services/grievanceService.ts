@@ -16,7 +16,9 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 const grievanceCollection = collection(db, 'grievances');
 
 export const getGrievances = async (user: { userId: string, userEmail: string }): Promise<Grievance[]> => {
-  if (!user || !user.userId) throw new Error('User not authenticated');
+  if (!user || !user.userId || !user.userEmail) {
+    throw new Error('User authentication details are incomplete.');
+  }
 
   let q;
   if (user.userEmail === 'ceo@mentorme.com') {
