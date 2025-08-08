@@ -7,11 +7,12 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recha
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { RecentActivity, Transaction, Document } from '@/types';
+import type { Transaction, Document } from '@/types';
 import { useState, useEffect } from 'react';
 import { getTransactions } from '@/services/transactionService';
 import { getDocuments } from '@/services/documentService';
-import { format, subMonths, getMonth, getYear } from 'date-fns';
+import { format, subMonths, formatDistanceToNow } from 'date-fns';
+import { id as IndonesianLocale } from 'date-fns/locale';
 
 const chartConfig = {
   income: {
@@ -24,17 +25,20 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const recentActivities: RecentActivity[] = [
-    { id: '1', user: 'CEO', avatar: 'https://placehold.co/40x40.png', action: 'Uploaded "Q2 Financials.pdf"', timestamp: '2 hours ago' },
-    { id: '2', user: 'CFO', avatar: 'https://placehold.co/40x40.png', action: 'Added an expense of Rp 2,500,000 for Marketing', timestamp: '5 hours ago' },
-    { id: '3', user: 'COO', avatar: 'https://placehold.co/40x40.png', action: 'Downloaded "Operational_Plan_v3.docx"', timestamp: '1 day ago' },
-    { id: '4', user: 'CTO', avatar: 'https://placehold.co/40x40.png', action: 'Uploaded "Tech_Roadmap.pdf"', timestamp: '2 days ago' },
-];
+type CombinedActivity = {
+    id: string;
+    type: 'transaction' | 'document';
+    user: string;
+    avatar: string;
+    action: string;
+    timestamp: Date;
+};
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<CombinedActivity[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,6 +50,35 @@ export default function DashboardPage() {
         ]);
         setTransactions(transactionsData);
         setDocuments(documentsData);
+
+        const combined: CombinedActivity[] = [];
+
+        transactionsData.forEach(t => {
+            combined.push({
+                id: `t-${t.id}`,
+                type: 'transaction',
+                user: 'Finance Team',
+                avatar: 'https://placehold.co/40x40.png',
+                action: `${t.type === 'Income' ? 'Added an income' : 'Added an expense'} of ${formatCurrency(t.amount)} for ${t.description}`,
+                timestamp: t.date.toDate()
+            });
+        });
+
+        documentsData.forEach(d => {
+            combined.push({
+                id: `d-${d.id}`,
+                type: 'document',
+                user: 'Admin',
+                avatar: 'https://placehold.co/40x40.png',
+                action: `Uploaded "${d.name}" to ${d.category}`,
+                timestamp: d.createdAt.toDate()
+            });
+        });
+        
+        combined.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+        setRecentActivities(combined.slice(0, 5));
+
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -64,7 +97,6 @@ export default function DashboardPage() {
     }).format(value);
   }
 
-  // Calculate total income and expenses for the current cash balance
   const totalIncome = transactions.filter(t => t.type === 'Income').reduce((acc, item) => acc + item.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'Expense').reduce((acc, item) => acc + item.amount, 0);
   const currentBalance = totalIncome - totalExpense;
@@ -174,7 +206,7 @@ export default function DashboardPage() {
                             </Avatar>
                             <div className="flex-1">
                                 <p className="text-sm font-medium">{activity.action}</p>
-                                <p className="text-xs text-muted-foreground">{activity.user} - {activity.timestamp}</p>
+                                <p className="text-xs text-muted-foreground">{activity.user} - {formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: IndonesianLocale })}</p>
                             </div>
                         </div>
                     ))}
