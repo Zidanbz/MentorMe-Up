@@ -1,10 +1,13 @@
+import { Timestamp } from "firebase/firestore";
+
 export type Document = {
   id: string;
   name: string;
   type: 'PDF' | 'Word' | 'Excel' | 'Image' | 'Other';
   category: 'Legal' | 'Finance' | 'Operations' | 'Reports';
-  createdAt: Date;
+  createdAt: Timestamp;
   url: string;
+  storagePath: string;
 };
 
 export type Transaction = {
@@ -13,7 +16,7 @@ export type Transaction = {
   amount: number;
   category: 'Salary' | 'Marketing' | 'Investment' | 'Operations' | 'Other';
   description: string;
-  date: Date;
+  date: Timestamp;
 };
 
 export type RecentActivity = {
@@ -23,5 +26,3 @@ export type RecentActivity = {
   action: string;
   timestamp: string;
 };
-
-    

@@ -17,14 +17,13 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogClose,
 } from '@/components/ui/dialog';
 import {
     Select,
@@ -35,7 +34,7 @@ import {
   } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, MoreVertical, PlusCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, MoreVertical, PlusCircle, Loader2 } from 'lucide-react';
 import type { Transaction } from '@/types';
 import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { VoiceInput } from '@/components/voice-input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -63,11 +62,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transactionService';
 
-const transactionSchema = z.object({
-  id: z.string().optional(),
+const transactionFormSchema = z.object({
   type: z.enum(['Income', 'Expense']),
   amount: z.preprocess(
     (a) => parseInt(z.string().parse(a), 10),
@@ -78,37 +76,66 @@ const transactionSchema = z.object({
   date: z.date(),
 });
 
+type TransactionFormData = z.infer<typeof transactionFormSchema>;
+
 const transactionCategories: Transaction['category'][] = ['Salary', 'Marketing', 'Investment', 'Operations', 'Other'];
 
 export default function CashFlowPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', type: 'Income', amount: 5000000, category: 'Salary', description: 'Monthly Salary', date: new Date(2023, 5, 1) },
-    { id: '2', type: 'Expense', amount: 2500000, category: 'Marketing', description: 'Social Media Campaign', date: new Date(2023, 5, 5) },
-    { id: '3', type: 'Income', amount: 1200000, category: 'Investment', description: 'Stock Dividend', date: new Date(2023, 5, 10) },
-    { id: '4', type: 'Expense', amount: 300000, category: 'Operations', description: 'Office Supplies', date: new Date(2023, 5, 12) },
-    { id: '5', type: 'Expense', amount: 750000, category: 'Operations', description: 'Cloud Server Hosting', date: new Date(2023, 5, 15) },
-  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { toast } = useToast();
 
-  const handleAddTransaction = (data: Transaction) => {
-    setTransactions(prev => [...prev, { ...data, id: Date.now().toString() }]);
-    toast({ title: 'Success', description: 'Transaction added successfully.' });
-    setIsDialogOpen(false);
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const data = await getTransactions();
+      setTransactions(data);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch transactions.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUpdateTransaction = (data: Transaction) => {
-    setTransactions(prev => prev.map(t => t.id === data.id ? data : t));
-    toast({ title: 'Success', description: 'Transaction updated successfully.' });
-    setEditingTransaction(null);
-    setIsDialogOpen(false);
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const handleAddTransaction = async (data: TransactionFormData) => {
+    try {
+      await addTransaction(data);
+      toast({ title: 'Success', description: 'Transaction added successfully.' });
+      fetchTransactions();
+      setIsDialogOpen(false);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add transaction.' });
+    }
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    toast({ title: 'Success', description: 'Transaction deleted successfully.' });
+  const handleUpdateTransaction = async (data: TransactionFormData) => {
+      if (!editingTransaction?.id) return;
+    try {
+      await updateTransaction(editingTransaction.id, data);
+      toast({ title: 'Success', description: 'Transaction updated successfully.' });
+      setEditingTransaction(null);
+      fetchTransactions();
+      setIsDialogOpen(false);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update transaction.' });
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+        await deleteTransaction(id);
+        toast({ title: 'Success', description: 'Transaction deleted successfully.' });
+        fetchTransactions();
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete transaction.' });
+    }
   };
   
   const openEditDialog = (transaction: Transaction) => {
@@ -148,13 +175,13 @@ export default function CashFlowPage() {
           </TabsList>
 
           <TabsContent value="all">
-            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} />
+            <TransactionTable transactions={transactions} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading}/>
           </TabsContent>
           <TabsContent value="income">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Income')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} />
           </TabsContent>
           <TabsContent value="expense">
-            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} />
+            <TransactionTable transactions={transactions.filter(t => t.type === 'Expense')} onEdit={openEditDialog} onDelete={handleDeleteTransaction} loading={loading} />
           </TabsContent>
         </Tabs>
       </div>
@@ -165,43 +192,43 @@ export default function CashFlowPage() {
 type TransactionDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddTransaction: (data: Transaction) => void;
-    onUpdateTransaction: (data: Transaction) => void;
+    onAddTransaction: (data: TransactionFormData) => void;
+    onUpdateTransaction: (data: TransactionFormData) => void;
     editingTransaction: Transaction | null;
 };
 
 function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransaction, editingTransaction }: TransactionDialogProps) {
     const isEditMode = !!editingTransaction;
-    const { register, handleSubmit, control, setValue, reset, formState: { errors } } = useForm<Transaction>({
-        resolver: zodResolver(transactionSchema),
-        defaultValues: {
-            type: 'Expense',
-            date: new Date(),
-        }
+    const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm<TransactionFormData>({
+        resolver: zodResolver(transactionFormSchema),
     });
 
-    React.useEffect(() => {
-        if (isEditMode) {
-            reset(editingTransaction);
-        } else {
-            reset({
-                type: 'Expense',
-                amount: 0,
-                category: 'Other',
-                description: '',
-                date: new Date(),
-            });
+    useEffect(() => {
+        if (isOpen) {
+            if (isEditMode && editingTransaction) {
+                reset({
+                    ...editingTransaction,
+                    date: editingTransaction.date.toDate(),
+                });
+            } else {
+                reset({
+                    type: 'Expense',
+                    amount: 0,
+                    category: 'Other',
+                    description: '',
+                    date: new Date(),
+                });
+            }
         }
     }, [editingTransaction, isOpen, reset, isEditMode]);
 
 
-    const onSubmit = (data: Transaction) => {
+    const onSubmit = (data: TransactionFormData) => {
         if (isEditMode) {
-            onUpdateTransaction({ ...editingTransaction, ...data });
+            onUpdateTransaction(data);
         } else {
             onAddTransaction(data);
         }
-        setIsOpen(false);
     };
 
     return (
@@ -221,7 +248,7 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
                                 name="type"
                                 control={control}
                                 render={({ field }) => (
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a type" />
                                         </SelectTrigger>
@@ -244,7 +271,7 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
                                 name="category"
                                 control={control}
                                 render={({ field }) => (
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -292,9 +319,12 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>
-                            <Button type="button" variant="secondary">Cancel</Button>
+                            <Button type="button" variant="secondary" disabled={isSubmitting}>Cancel</Button>
                         </DialogClose>
-                        <Button type="submit">{isEditMode ? 'Save Changes' : 'Save Transaction'}</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           {isEditMode ? 'Save Changes' : 'Save Transaction'}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -302,7 +332,7 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
     );
 }
 
-function TransactionTable({ transactions, onEdit, onDelete }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void }) {
+function TransactionTable({ transactions, onEdit, onDelete, loading }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean }) {
     return (
         <Card>
             <Table>
@@ -317,56 +347,63 @@ function TransactionTable({ transactions, onEdit, onDelete }: { transactions: Tr
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {transactions.length === 0 && (
+                    {loading ? (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center h-24">
+                                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                            </TableCell>
+                        </TableRow>
+                    ) : transactions.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={6} className="text-center h-24">No transactions found.</TableCell>
                         </TableRow>
+                    ) : (
+                        transactions.map((t) => (
+                            <TableRow key={t.id}>
+                                <TableCell className="font-medium">{t.description}</TableCell>
+                                <TableCell>
+                                    <span className={cn(
+                                        "rounded-full px-2 py-1 text-xs font-semibold",
+                                        t.type === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    )}>
+                                    {t.type}
+                                    </span>
+                                </TableCell>
+                                <TableCell>{t.category}</TableCell>
+                                <TableCell>{format(t.date.toDate(), 'MMM d, yyyy')}</TableCell>
+                                <TableCell className="text-right font-mono">{t.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
+                                <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Delete</DropdownMenuItem>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the transaction.
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                  <AlertDialogAction onClick={() => onDelete(t.id)}>Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))
                     )}
-                    {transactions.map((t) => (
-                        <TableRow key={t.id}>
-                            <TableCell className="font-medium">{t.description}</TableCell>
-                            <TableCell>
-                                <span className={cn(
-                                    "rounded-full px-2 py-1 text-xs font-semibold",
-                                    t.type === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                )}>
-                                {t.type}
-                                </span>
-                            </TableCell>
-                            <TableCell>{t.category}</TableCell>
-                            <TableCell>{format(t.date, 'MMM d, yyyy')}</TableCell>
-                            <TableCell className="text-right font-mono">{t.amount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => onEdit(t)}>Edit</DropdownMenuItem>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Delete</DropdownMenuItem>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the transaction.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => onDelete(t.id)}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    ))}
                 </TableBody>
             </Table>
         </Card>
@@ -377,5 +414,3 @@ function TransactionTable({ transactions, onEdit, onDelete }: { transactions: Tr
 function Card({children}: {children: React.ReactNode}) {
     return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
 }
-
-    

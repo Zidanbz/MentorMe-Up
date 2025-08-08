@@ -33,7 +33,7 @@ import {
   } from "@/components/ui/select"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Eye, FileUp, MoreVertical, Trash } from 'lucide-react';
+import { Download, Eye, FileUp, MoreVertical, Trash, Loader2 } from 'lucide-react';
 import type { Document } from '@/types';
 import {
     DropdownMenu,
@@ -41,7 +41,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,58 +55,61 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
+import { getDocuments, addDocument, deleteDocument } from '@/services/documentService';
 
 const documentSchema = z.object({
-    name: z.string().min(1, 'File name is required'),
     category: z.enum(['Legal', 'Finance', 'Operations', 'Reports']),
-    file: z.any().refine(files => files?.length === 1, 'File is required.'),
+    file: z.instanceof(FileList).refine(files => files?.length === 1, 'File is required.'),
 });
 
-const initialDocuments: Document[] = [
-    { id: '1', name: 'Q2 Financials.pdf', type: 'PDF', category: 'Finance', createdAt: new Date('2023-06-15'), url: '#' },
-    { id: '2', name: 'MSA_ClientA.docx', type: 'Word', category: 'Legal', createdAt: new Date('2023-06-12'), url: '#' },
-    { id: '3', name: 'Marketing_Budget.xlsx', type: 'Excel', category: 'Finance', createdAt: new Date('2023-06-10'), url: '#' },
-    { id: '4', name: 'Ops_Checklist.pdf', type: 'PDF', category: 'Operations', createdAt: new Date('2023-06-08'), url: '#' },
-    { id: '5', name: 'Annual_Report_2022.pdf', type: 'PDF', category: 'Reports', createdAt: new Date('2023-05-20'), url: '#' },
-    { id: '6', name: 'NDA_Template.docx', type: 'Word', category: 'Legal', createdAt: new Date('2023-05-18'), url: '#' },
-];
+type DocumentFormData = z.infer<typeof documentSchema>;
+
 
 const categories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports'];
-const getFileType = (fileName: string): Document['type'] => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    if (extension === 'pdf') return 'PDF';
-    if (extension === 'docx' || extension === 'doc') return 'Word';
-    if (extension === 'xlsx' || extension === 'xls') return 'Excel';
-    if (['png', 'jpg', 'jpeg', 'gif'].includes(extension || '')) return 'Image';
-    return 'Other';
-};
-
 
 export default function DocumentsPage() {
-    const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const { toast } = useToast();
 
-    const handleAddDocument = (data: z.infer<typeof documentSchema>) => {
-        const newDocument: Document = {
-            id: Date.now().toString(),
-            name: data.file[0].name,
-            type: getFileType(data.file[0].name),
-            category: data.category,
-            createdAt: new Date(),
-            url: URL.createObjectURL(data.file[0]),
-        };
-        setDocuments(prev => [newDocument, ...prev]);
-        toast({ title: 'Success', description: 'Document uploaded successfully.' });
-        setIsDialogOpen(false);
+    const fetchDocuments = async () => {
+        try {
+            setLoading(true);
+            const data = await getDocuments();
+            setDocuments(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch documents.' });
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleDeleteDocument = (id: string) => {
-        setDocuments(prev => prev.filter(doc => doc.id !== id));
-        toast({ title: 'Success', description: 'Document deleted successfully.' });
+    useEffect(() => {
+        fetchDocuments();
+    }, []);
+
+    const handleAddDocument = async (data: DocumentFormData) => {
+        try {
+            await addDocument(data.file[0], data.category);
+            toast({ title: 'Success', description: 'Document uploaded successfully.' });
+            fetchDocuments();
+            setIsDialogOpen(false);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
+        }
+    };
+
+    const handleDeleteDocument = async (doc: Document) => {
+        try {
+            await deleteDocument(doc);
+            toast({ title: 'Success', description: 'Document deleted successfully.' });
+            fetchDocuments();
+        } catch (error) {
+             toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete document.' });
+        }
     };
 
     return (
@@ -133,11 +136,11 @@ export default function DocumentsPage() {
             </TabsList>
 
             <TabsContent value="all">
-                <DocumentTable documents={documents} onDelete={handleDeleteDocument} />
+                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} />
             </TabsContent>
             {categories.map(cat => (
                 <TabsContent key={cat} value={cat}>
-                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} />
+                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} />
                 </TabsContent>
             ))}
             </Tabs>
@@ -149,18 +152,24 @@ export default function DocumentsPage() {
 type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddDocument: (data: z.infer<typeof documentSchema>) => void;
+    onAddDocument: (data: DocumentFormData) => void;
 }
 
 function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocumentDialogProps) {
-    const { register, handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof documentSchema>>({
-        resolver: zodResolver(documentSchema)
+    const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<DocumentFormData>({
+        resolver: zodResolver(documentSchema),
+        defaultValues: { category: 'Finance' }
     });
 
-    const onSubmit = (data: z.infer<typeof documentSchema>) => {
+    const onSubmit = (data: DocumentFormData) => {
         onAddDocument(data);
-        reset();
     };
+
+    useEffect(() => {
+        if (!isOpen) {
+            reset();
+        }
+    }, [isOpen, reset]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -184,7 +193,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
                                 name="category"
                                 control={control}
                                 render={({ field }) => (
-                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -198,8 +207,11 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
-                        <Button type="submit">Upload</Button>
+                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Upload
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -207,7 +219,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument }: UploadDocume
     );
 }
 
-function DocumentTable({ documents, onDelete }: { documents: Document[], onDelete: (id: string) => void }) {
+function DocumentTable({ documents, onDelete, loading }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean }) {
     return (
         <Card>
             <Table>
@@ -221,49 +233,56 @@ function DocumentTable({ documents, onDelete }: { documents: Document[], onDelet
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {documents.length === 0 && (
+                     {loading ? (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center h-24">
+                                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                            </TableCell>
+                        </TableRow>
+                    ) : documents.length === 0 ? (
                          <TableRow>
                             <TableCell colSpan={5} className="text-center h-24">No documents found.</TableCell>
                         </TableRow>
+                    ) : (
+                        documents.map((doc) => (
+                            <TableRow key={doc.id}>
+                                <TableCell className="font-medium">{doc.name}</TableCell>
+                                <TableCell>{doc.type}</TableCell>
+                                <TableCell>{doc.category}</TableCell>
+                                <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
+                                <TableCell className="text-right">
+                                   <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
+                                            <DropdownMenuItem asChild><a href={doc.url} download={doc.name}><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the document from storage.
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                  <AlertDialogAction onClick={() => onDelete(doc)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))
                     )}
-                    {documents.map((doc) => (
-                        <TableRow key={doc.id}>
-                            <TableCell className="font-medium">{doc.name}</TableCell>
-                            <TableCell>{doc.type}</TableCell>
-                            <TableCell>{doc.category}</TableCell>
-                            <TableCell>{format(doc.createdAt, 'MMM d, yyyy')}</TableCell>
-                            <TableCell className="text-right">
-                               <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem asChild><a href={doc.url} target="_blank" rel="noopener noreferrer"><Eye className="mr-2 h-4 w-4" />Preview</a></DropdownMenuItem>
-                                        <DropdownMenuItem asChild><a href={doc.url} download={doc.name}><Download className="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}><Trash className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete the document.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    ))}
                 </TableBody>
             </Table>
         </Card>
@@ -274,5 +293,3 @@ function DocumentTable({ documents, onDelete }: { documents: Document[], onDelet
 function Card({children}: {children: React.ReactNode}) {
     return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
 }
-
-    

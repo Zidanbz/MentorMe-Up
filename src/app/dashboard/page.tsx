@@ -2,23 +2,16 @@
 
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Banknote, FileText, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Activity, Banknote, FileText, Users, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { RecentActivity } from '@/types';
-
-// NOTE: In a real application, this data would come from a shared state management solution (e.g., Context, Redux, Zustand)
-// or be fetched from an API. For this prototype, we'll keep it simple.
-const chartData = [
-  { month: 'January', income: 18600000, expense: 8000000 },
-  { month: 'February', income: 30500000, expense: 12900000 },
-  { month: 'March', income: 23700000, expense: 15200000 },
-  { month: 'April', income: 27800000, expense: 19800000 },
-  { month: 'May', income: 18900000, expense: 11000000 },
-  { month: 'June', income: 23900000, expense: 17000000 },
-];
+import type { RecentActivity, Transaction, Document } from '@/types';
+import { useState, useEffect } from 'react';
+import { getTransactions } from '@/services/transactionService';
+import { getDocuments } from '@/services/documentService';
+import { format, subMonths, getMonth, getYear } from 'date-fns';
 
 const chartConfig = {
   income: {
@@ -39,6 +32,29 @@ const recentActivities: RecentActivity[] = [
 ];
 
 export default function DashboardPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [transactionsData, documentsData] = await Promise.all([
+          getTransactions(),
+          getDocuments(),
+        ]);
+        setTransactions(transactionsData);
+        setDocuments(documentsData);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -49,10 +65,48 @@ export default function DashboardPage() {
   }
 
   // Calculate total income and expenses for the current cash balance
-  const totalIncome = chartData.reduce((acc, item) => acc + item.income, 0);
-  const totalExpense = chartData.reduce((acc, item) => acc + item.expense, 0);
+  const totalIncome = transactions.filter(t => t.type === 'Income').reduce((acc, item) => acc + item.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === 'Expense').reduce((acc, item) => acc + item.amount, 0);
   const currentBalance = totalIncome - totalExpense;
 
+  const processChartData = () => {
+    const monthlyData: { [key: string]: { month: string, income: number, expense: number } } = {};
+    const sixMonthsAgo = subMonths(new Date(), 5);
+    
+    for (let i = 0; i < 6; i++) {
+        const monthDate = subMonths(new Date(), i);
+        const monthKey = format(monthDate, 'yyyy-MM');
+        monthlyData[monthKey] = { month: format(monthDate, 'MMMM'), income: 0, expense: 0 };
+    }
+
+    transactions.forEach(t => {
+      const transactionDate = t.date.toDate();
+      if (transactionDate >= sixMonthsAgo) {
+        const monthKey = format(transactionDate, 'yyyy-MM');
+        if (monthlyData[monthKey]) {
+            if (t.type === 'Income') {
+                monthlyData[monthKey].income += t.amount;
+            } else {
+                monthlyData[monthKey].expense += t.amount;
+            }
+        }
+      }
+    });
+
+    return Object.values(monthlyData).reverse();
+  };
+
+  const chartData = processChartData();
+
+  if (loading) {
+    return (
+        <AppLayout>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>
@@ -68,16 +122,16 @@ export default function DashboardPage() {
           />
           <DashboardCard
             title="Total Documents"
-            value="6"
+            value={documents.length.toString()}
             icon={FileText}
             details="+2 this month"
             change="up"
           />
           <DashboardCard
             title="Monthly Transactions"
-            value={`+${chartData.length * 2}`}
+            value={transactions.length.toString()}
             icon={Activity}
-            details={`${chartData.length} income, ${chartData.length} expenses`}
+            details={`${transactions.filter(t => t.type === 'Income').length} income, ${transactions.filter(t => t.type === 'Expense').length} expenses`}
           />
           <DashboardCard
             title="Active Users"
@@ -159,5 +213,3 @@ function DashboardCard({ title, value, icon: Icon, details, change }: DashboardC
     </Card>
   );
 }
-
-    
