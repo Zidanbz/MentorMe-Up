@@ -62,4 +62,15 @@ export type Grievance = {
   filePath?: string;
   createdAt: Timestamp;
   status: 'Open' | 'In Progress' | 'Resolved';
-}
+};
+
+// Type for data sent from client to server for grievance submission
+export type GrievanceClientData = {
+    subject: string;
+    description: string;
+    file?: {
+        buffer: string; // base64 encoded string
+        name: string;
+        type: string;
+    };
+};

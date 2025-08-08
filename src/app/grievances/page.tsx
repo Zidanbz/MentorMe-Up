@@ -30,7 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Grievance } from '@/types';
+import type { Grievance, GrievanceClientData } from '@/types';
 import { getGrievances, addGrievance } from '@/services/grievanceService';
 import { format } from 'date-fns';
 
@@ -75,15 +75,33 @@ export default function GrievancesPage() {
         return;
     }
     try {
-      await addGrievance(data, { userId: user.uid, userEmail: user.email || 'Unknown' });
-      toast({ title: 'Success', description: 'Your grievance has been submitted.' });
-      fetchGrievances();
-      setIsDialogOpen(false);
+        let fileData: GrievanceClientData['file'] = undefined;
+        if (data.file && data.file.length > 0) {
+            const file = data.file[0];
+            const arrayBuffer = await file.arrayBuffer();
+            fileData = {
+                buffer: Buffer.from(arrayBuffer).toString('base64'),
+                name: file.name,
+                type: file.type,
+            };
+        }
+
+        const grievanceData: GrievanceClientData = {
+            subject: data.subject,
+            description: data.description,
+            file: fileData,
+        };
+
+        await addGrievance(grievanceData, { userId: user.uid, userEmail: user.email || 'Unknown' });
+        toast({ title: 'Success', description: 'Your grievance has been submitted.' });
+        fetchGrievances();
+        setIsDialogOpen(false);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to submit grievance.';
         toast({ variant: 'destructive', title: 'Error', description: errorMessage });
     }
   };
+
 
   if (loading) {
     return (
