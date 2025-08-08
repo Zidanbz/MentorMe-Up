@@ -22,14 +22,15 @@ export const getGrievances = async (user: { userId: string, userEmail: string })
 
   let q;
   if (user.userEmail === 'ceo@mentorme.com') {
-    // CEO sees all grievances
+    // CEO sees all grievances, sorted by most recent
     q = query(grievanceCollection, orderBy('createdAt', 'desc'));
   } else {
-    // Other users see only their own grievances
+    // Other users see only their own grievances. 
+    // We remove the orderBy clause to avoid needing a composite index.
+    // Sorting will be handled on the client.
     q = query(
       grievanceCollection,
-      where('userId', '==', user.userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.userId)
     );
   }
 

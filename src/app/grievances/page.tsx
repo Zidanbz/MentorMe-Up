@@ -22,8 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Loader2, Paperclip, Download } from 'lucide-react';
+import { PlusCircle, Loader2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -141,7 +140,6 @@ export default function GrievancesPage() {
 
   const fetchGrievances = async () => {
     if (!user?.uid || !user?.email) {
-        // This case should ideally not happen if called correctly from useEffect
         setLoading(false);
         return;
     }
@@ -149,6 +147,8 @@ export default function GrievancesPage() {
     try {
       setLoading(true);
       const data = await getGrievances({ userId: user.uid, userEmail: user.email });
+      // Client-side sorting to ensure order
+      data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setGrievances(data);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
@@ -182,15 +182,13 @@ export default function GrievancesPage() {
            {!isCEO && <AddGrievanceDialog onGrievanceAdded={fetchGrievances} />}
         </div>
         
-        {grievances.length === 0 && (
+        {grievances.length === 0 ? (
             <div className="text-center py-12">
                 <p className="text-muted-foreground mt-2">
                     {isCEO ? "Belum ada pengaduan yang diajukan oleh anggota tim." : "Anda belum mengajukan pengaduan."}
                 </p>
             </div>
-        )}
-
-        {grievances.length > 0 && (
+        ) : (
             <div className="flex flex-col gap-4">
                 {grievances.map(g => (
                     <Card key={g.id}>
