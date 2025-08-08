@@ -152,7 +152,6 @@ function AddGrievanceDialog({ isOpen, setIsOpen, onSubmit }: { isOpen: boolean, 
 
   const handleFormSubmit = async (data: GrievanceFormData) => {
     await onSubmit(data);
-    reset();
   };
   
   useEffect(() => {
