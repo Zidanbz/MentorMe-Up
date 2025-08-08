@@ -64,11 +64,13 @@ export default function GrievancesPage() {
       }
     };
 
-    fetchGrievances();
+    if (user && user.email) {
+      fetchGrievances();
+    }
   }, [user]);
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
-    if (!user) {
+    if (!user || !user.email) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to submit a grievance.' });
         return;
     }
@@ -90,15 +92,13 @@ export default function GrievancesPage() {
             file: fileData,
         };
 
-        await addGrievance(grievanceData, { userId: user.uid, userEmail: user.email || 'Unknown' });
+        await addGrievance(grievanceData, { userId: user.uid, userEmail: user.email });
         toast({ title: 'Success', description: 'Your grievance has been submitted.' });
         
         // Refetch grievances after submission
-        if (user.email) {
-            const updatedGrievances = await getGrievances({ userId: user.uid, userEmail: user.email });
-            setGrievances(updatedGrievances);
-        }
-
+        const updatedGrievances = await getGrievances({ userId: user.uid, userEmail: user.email });
+        setGrievances(updatedGrievances);
+        
         setIsDialogOpen(false);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to submit grievance.';
@@ -146,7 +146,7 @@ export default function GrievancesPage() {
                             <CardTitle>{g.subject}</CardTitle>
                             <CardDescription>
                                 {isCEO && `From: ${g.userEmail} | `}
-                                Submitted on {format(g.createdAt.toDate(), 'MMM d, yyyy, HH:mm')}
+                                Submitted on {format(g.createdAt as Date, 'MMM d, yyyy, HH:mm')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -160,7 +160,7 @@ export default function GrievancesPage() {
                                         <Download className="mr-2 h-4 w-4" />
                                         Lampiran
                                     </a>
-                                </Button>
+                                 </Button>
                              )}
                         </CardFooter>
                     </Card>
