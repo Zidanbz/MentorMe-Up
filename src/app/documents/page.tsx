@@ -61,7 +61,7 @@ import { getDocuments, addDocument, deleteDocument } from '@/services/documentSe
 
 const documentSchema = z.object({
     category: z.enum(['Legal', 'Finance', 'Operations', 'Reports']),
-    file: z.instanceof(FileList).refine(files => files?.length === 1, 'File is required.'),
+    file: (typeof window === 'undefined' ? z.any() : z.instanceof(FileList)).refine(files => files?.length === 1, 'File is required.'),
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
