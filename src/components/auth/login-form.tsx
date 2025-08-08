@@ -11,7 +11,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,24 +44,7 @@ export function LoginForm() {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Google Sign-In Failed',
-        description: error.message,
+        description: 'Invalid email or password.',
       });
     } finally {
       setLoading(false);
@@ -113,26 +96,6 @@ export function LoginForm() {
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Sign In
         </Button>
-
-        <div className="relative my-4">
-          <Separator />
-          <p className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-sm text-muted-foreground">
-            or
-          </p>
-        </div>
-
-        <Button variant="outline" className="w-full" type="button" onClick={handleGoogleSignIn} disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-76.2 64.5C308.6 102.3 282.7 92 248 92c-88.4 0-160 71.6-160 160s71.6 160 160 160c92.6 0 151.8-64.4 158.8-144.2H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"></path></svg>
-          Sign in with Google
-        </Button>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
-            Sign up
-          </Link>
-        </p>
       </form>
     </Form>
   );
