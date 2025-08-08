@@ -18,23 +18,19 @@ import { v4 as uuidv4 } from 'uuid';
 
 const projectsCollection = collection(db, 'projects');
 
-// Helper to convert Firestore Timestamps in nested objects
-const convertDateToTimestamp = (data: any): any => {
-    if (data instanceof Date) {
-        return Timestamp.fromDate(data);
-    }
-    if (Array.isArray(data)) {
-        return data.map(convertDateToTimestamp);
-    }
-    if (typeof data === 'object' && data !== null && !(data instanceof Timestamp)) {
-        const res: { [key: string]: any } = {};
-        for (const key in data) {
-            res[key] = convertDateToTimestamp(data[key]);
+// Helper to convert single level date properties to Firestore Timestamps
+const convertDatesToTimestamps = (data: any): any => {
+    const newData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (data[key] instanceof Date) {
+            newData[key] = Timestamp.fromDate(data[key]);
+        } else {
+            newData[key] = data[key];
         }
-        return res;
     }
-    return data;
+    return newData;
 };
+
 
 // Project functions
 export const getProjects = async (): Promise<Project[]> => {
@@ -56,7 +52,7 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'mi
 
 export const updateProject = async (id: string, project: Partial<Project>): Promise<void> => {
     const docRef = doc(db, 'projects', id);
-    await updateDoc(docRef, convertDateToTimestamp(project));
+    await updateDoc(docRef, project);
 };
 
 export const deleteProject = async (id: string): Promise<void> => {
@@ -75,10 +71,10 @@ export const addMilestone = async (projectId: string, milestone: Omit<Milestone,
         }
         const projectData = projectDoc.data() as Project;
         const newMilestone: Milestone = {
-            ...milestone,
             id: uuidv4(),
+            name: milestone.name,
             tasks: [],
-            dueDate: milestone.dueDate ? Timestamp.fromDate(milestone.dueDate as any) : undefined,
+            ...(milestone.dueDate && { dueDate: Timestamp.fromDate(milestone.dueDate as Date) })
         };
         const newMilestones = [...projectData.milestones, newMilestone];
         transaction.update(projectRef, { milestones: newMilestones });
@@ -110,15 +106,16 @@ export const addTask = async (projectId: string, milestoneId: string, task: Omit
         const projectData = projectDoc.data() as Project;
         
         const newTask: Task = {
-            ...task,
             id: uuidv4(),
+            name: task.name,
             completed: false,
-            dueDate: task.dueDate ? Timestamp.fromDate(task.dueDate as any) : undefined,
+            ...(task.description && { description: task.description }),
+            ...(task.dueDate && { dueDate: Timestamp.fromDate(task.dueDate as Date) })
         }
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
-                return { ...m, tasks: [...m.tasks, newTask] };
+                return { ...m, tasks: [...(m.tasks || []), newTask] };
             }
             return m;
         });
@@ -140,7 +137,7 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return convertDateToTimestamp({ ...t, ...taskUpdate });
+                        return { ...t, ...convertDatesToTimestamps(taskUpdate) };
                     }
                     return t;
                 });
@@ -149,7 +146,7 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
             return m;
         });
 
-        transaction.update(projectRef, { milestones: convertDateToTimestamp(newMilestones) });
+        transaction.update(projectRef, { milestones: newMilestones });
     });
 };
 

@@ -27,7 +27,10 @@ import { Timestamp } from 'firebase/firestore';
 
 // Schemas
 const projectSchema = z.object({ name: z.string().min(1, "Project name is required") });
-const milestoneSchema = z.object({ name: z.string().min(1, "Milestone name is required") });
+const milestoneSchema = z.object({ 
+    name: z.string().min(1, "Milestone name is required"),
+    dueDate: z.date().optional(),
+});
 const taskSchema = z.object({
   name: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
@@ -68,7 +71,7 @@ export default function ProjectTaskPage() {
 
   const handleAddMilestone = async (projectId: string, data: z.infer<typeof milestoneSchema>) => {
     try {
-      await addMilestone(projectId, { name: data.name });
+      await addMilestone(projectId, { name: data.name, dueDate: data.dueDate });
       fetchProjects();
       return true;
     } catch (error) {
@@ -195,7 +198,10 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
               description={`Create a new milestone for the "${project.name}" project.`}
               schema={milestoneSchema}
               onSubmit={onAddMilestone}
-              fields={[{ name: 'name', label: 'Milestone Name', placeholder: 'e.g. Launch Week' }]}
+              fields={[
+                { name: 'name', label: 'Milestone Name', placeholder: 'e.g. Launch Week' },
+                { name: 'dueDate', label: 'Due Date', type: 'date' },
+              ]}
             />
           <ProjectActions onDelete={onDeleteProject} />
         </div>
@@ -268,12 +274,28 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   const completedTasks = useMemo(() => milestone.tasks ? milestone.tasks.filter(t => t.completed).length : 0, [milestone.tasks]);
   const totalTasks = useMemo(() => milestone.tasks ? milestone.tasks.length : 0, [milestone.tasks]);
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  
+  const dueDate = useMemo(() => {
+    if (!milestone.dueDate) return null;
+    if (milestone.dueDate instanceof Timestamp) {
+        return milestone.dueDate.toDate();
+    }
+    return milestone.dueDate as Date;
+  }, [milestone.dueDate]);
+
 
   return (
     <AccordionItem value={milestone.id}>
       <AccordionTrigger>
-        <div className="flex-1 flex items-center justify-between pr-4">
-            <span>{milestone.name}</span>
+        <div className="flex-1 flex flex-col items-start text-left gap-1">
+            <span className="font-semibold">{milestone.name}</span>
+             {dueDate && (
+                <span className="text-xs text-muted-foreground font-normal">
+                    Due: {format(dueDate, 'MMM d, yyyy')}
+                </span>
+            )}
+        </div>
+        <div className="flex-1 flex items-center justify-end pr-4">
             <span className="text-sm text-muted-foreground">{completedTasks} / {totalTasks} tasks completed</span>
         </div>
       </AccordionTrigger>
