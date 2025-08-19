@@ -6,7 +6,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { updatePassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -26,6 +26,8 @@ type ChangePasswordFormProps = {
 
 export function ChangePasswordForm({ setDialogOpen }: ChangePasswordFormProps) {
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -76,7 +78,19 @@ export function ChangePasswordForm({ setDialogOpen }: ChangePasswordFormProps) {
             <FormItem>
               <FormLabel>New Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
+                <div className="relative">
+                    <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" {...field} disabled={loading} />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={loading}
+                    >
+                        {showPassword ? <EyeOff /> : <Eye />}
+                    </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -89,7 +103,19 @@ export function ChangePasswordForm({ setDialogOpen }: ChangePasswordFormProps) {
             <FormItem>
               <FormLabel>Confirm New Password</FormLabel>
               <FormControl>
-                 <Input type="password" placeholder="••••••••" {...field} disabled={loading} />
+                 <div className="relative">
+                    <Input type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" {...field} disabled={loading} />
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={loading}
+                    >
+                        {showConfirmPassword ? <EyeOff /> : <Eye />}
+                    </Button>
+                 </div>
               </FormControl>
               <FormMessage />
             </FormItem>
