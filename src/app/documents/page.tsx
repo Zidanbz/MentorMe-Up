@@ -33,7 +33,7 @@ import {
   } from "@/components/ui/select"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Eye, FileUp, MoreVertical, Trash, Loader2 } from 'lucide-react';
+import { Download, Eye, FileUp, MoreVertical, Trash, Loader2, Search } from 'lucide-react';
 import type { Document } from '@/types';
 import {
     DropdownMenu,
@@ -42,7 +42,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
   } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,17 +63,17 @@ import { getDocuments, addDocument, deleteDocument } from '@/services/documentSe
 import { useAuth } from '@/hooks/useAuth';
 
 const documentSchema = z.object({
-    category: z.enum(['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights']),
+    category: z.enum(['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template']),
     file: (typeof window === 'undefined' ? z.any() : z.instanceof(FileList)).refine(files => files?.length > 0, 'File is required.'),
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
 
 
-const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights'];
+const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template'];
 
 const rolePermissions: Record<string, Document['category'][]> = {
-    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights'],
+    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template'],
     'cfo@mentorme.com': ['Finance', 'Investor & Fundraising'],
     'coo@mentorme.com': ['Operations', 'Legal'],
     'cto@mentorme.com': ['Product & Development'],
@@ -90,6 +90,9 @@ export default function DocumentsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState('all');
+
 
     const userEmail = user?.email || '';
     const userAllowedCategories = rolePermissions[userEmail] || [];
@@ -134,6 +137,14 @@ export default function DocumentsPage() {
             setDeletingId(null);
         }
     };
+    
+    const filteredDocuments = useMemo(() => {
+        return documents.filter(doc => {
+            const matchesCategory = activeTab === 'all' || doc.category === activeTab;
+            const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [documents, activeTab, searchTerm]);
 
     return (
         <AppLayout>
@@ -152,21 +163,26 @@ export default function DocumentsPage() {
                 onAddDocument={handleAddDocument}
                 allowedCategories={userAllowedCategories}
             />
+            
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search documents by name..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
 
-            <Tabs defaultValue="all">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="all">All</TabsTrigger>
                 {allCategories.map(cat => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
             </TabsList>
 
-            <TabsContent value="all">
-                <DocumentTable documents={documents} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
+            <TabsContent value={activeTab} forceMount>
+                 <DocumentTable documents={filteredDocuments} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
             </TabsContent>
-            {allCategories.map(cat => (
-                <TabsContent key={cat} value={cat}>
-                    <DocumentTable documents={documents.filter(d => d.category === cat)} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
-                </TabsContent>
-            ))}
             </Tabs>
         </div>
         </AppLayout>

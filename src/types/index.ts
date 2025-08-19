@@ -4,7 +4,7 @@ export type Document = {
   id: string;
   name: string;
   type: 'PDF' | 'Word' | 'Excel' | 'Image' | 'Other';
-  category: 'Legal' | 'Finance' | 'Operations' | 'Reports' | 'HR' | 'Product & Development' | 'Marketing & Sales' | 'Investor & Fundraising' | 'Research & Insights';
+  category: 'Legal' | 'Finance' | 'Operations' | 'Reports' | 'HR' | 'Product & Development' | 'Marketing & Sales' | 'Investor & Fundraising' | 'Research & Insights' | 'Template';
   createdAt: Timestamp;
   url: string;
   storagePath: string;
@@ -60,7 +60,7 @@ export type Grievance = {
   description: string;
   fileUrl?: string;
   filePath?: string;
-  createdAt: Timestamp;
+  createdAt: Date;
   status: 'Open' | 'In Progress' | 'Resolved';
 };
 
