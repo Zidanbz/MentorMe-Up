@@ -95,16 +95,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={{ children: 'Settings', side: 'right', align: 'center' }}>
-                <Link href="#">
-                  <Settings />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          {/* Settings button removed from here */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -147,9 +138,11 @@ function UserMenu() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <DropdownMenuItem asChild>
+            <Link href="/profile">
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </Link>
           </DropdownMenuItem>
            <DialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -157,10 +150,6 @@ function UserMenu() {
                 <span>Change Password</span>
               </DropdownMenuItem>
             </DialogTrigger>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
