@@ -33,7 +33,7 @@ import {
   } from "@/components/ui/select"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Eye, FileUp, MoreVertical, Trash, Loader2, Search } from 'lucide-react';
+import { Download, Eye, FileUp, MoreVertical, Trash, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Document } from '@/types';
 import {
     DropdownMenu,
@@ -92,6 +92,8 @@ export default function DocumentsPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
 
     const userEmail = user?.email || '';
@@ -113,6 +115,10 @@ export default function DocumentsPage() {
     useEffect(() => {
         fetchDocuments();
     }, []);
+    
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm]);
 
     const handleAddDocument = async (data: DocumentFormData) => {
         try {
@@ -145,6 +151,11 @@ export default function DocumentsPage() {
             return matchesCategory && matchesSearch;
         });
     }, [documents, activeTab, searchTerm]);
+
+    const paginatedDocuments = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredDocuments, currentPage, itemsPerPage]);
 
     return (
         <AppLayout>
@@ -181,9 +192,16 @@ export default function DocumentsPage() {
             </TabsList>
 
             <TabsContent value={activeTab} forceMount>
-                 <DocumentTable documents={filteredDocuments} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
+                 <DocumentTable documents={paginatedDocuments} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
             </TabsContent>
             </Tabs>
+
+             <Pagination
+                currentPage={currentPage}
+                totalItems={filteredDocuments.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+            />
         </div>
         </AppLayout>
     );
@@ -378,4 +396,53 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
 // A wrapper card for the table to provide a consistent border/shadow
 function Card({children}: {children: React.ReactNode}) {
     return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
+}
+
+type PaginationProps = {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+};
+
+function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: PaginationProps) {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    if (totalPages <= 1) {
+        return null;
+    }
+
+    const handlePrevious = () => {
+        onPageChange(Math.max(1, currentPage - 1));
+    };
+
+    const handleNext = () => {
+        onPageChange(Math.min(totalPages, currentPage + 1));
+    };
+
+    return (
+        <div className="flex items-center justify-end space-x-4">
+            <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevious}
+                disabled={currentPage === 1}
+            >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNext}
+                disabled={currentPage === totalPages}
+            >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+        </div>
+    );
 }
