@@ -13,10 +13,6 @@ type PaginationProps = {
 export function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: PaginationProps) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  if (totalPages <= 1) {
-    return null;
-  }
-
   const handlePrevious = () => {
     onPageChange(Math.max(1, currentPage - 1));
   };
@@ -25,10 +21,15 @@ export function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange
     onPageChange(Math.min(totalPages, currentPage + 1));
   };
 
+  // Do not render if there's no data to paginate
+  if (totalPages === 0) {
+    return null;
+  }
+
   return (
     <div className="flex items-center justify-end space-x-4">
       <span className="text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
+        Page {currentPage} of {totalPages > 0 ? totalPages : 1}
       </span>
       <Button
         variant="outline"
@@ -43,7 +44,7 @@ export function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange
         variant="outline"
         size="sm"
         onClick={handleNext}
-        disabled={currentPage === totalPages}
+        disabled={currentPage === totalPages || totalPages === 0}
       >
         Next
         <ChevronRight className="h-4 w-4 ml-1" />
