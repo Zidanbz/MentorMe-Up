@@ -197,6 +197,8 @@ export default function DocumentsPage() {
         }
     };
 
+    const userEmailMemo = useMemo(() => user?.email, [user?.email]);
+
     return (
         <AppLayout>
         <div className="flex flex-col gap-6">
@@ -259,12 +261,13 @@ export default function DocumentsPage() {
                     <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
                 ))}
             </TabsList>
-
+            
             <TabsContent value={activeTab} forceMount>
                  <DocumentTable 
                     documents={paginatedDocuments} 
                     onDelete={handleDeleteDocument} 
-                    loading={loading} 
+                    loading={loading}
+                    userEmail={userEmailMemo || ''}
                     allowedCategories={userAllowedCategories} 
                     deletingId={deletingId}
                     selectedIds={selectedIds}
@@ -360,10 +363,11 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     );
 }
 
-function DocumentTable({ documents, onDelete, loading, allowedCategories, deletingId, selectedIds, onSelectAll, onSelectOne }: { 
+function DocumentTable({ documents, onDelete, loading, userEmail, allowedCategories, deletingId, selectedIds, onSelectAll, onSelectOne }: { 
     documents: Document[], 
     onDelete: (doc: Document) => void, 
     loading: boolean, 
+    userEmail: string,
     allowedCategories: Document['category'][], 
     deletingId: string | null,
     selectedIds: string[],
@@ -378,7 +382,7 @@ function DocumentTable({ documents, onDelete, loading, allowedCategories, deleti
                     <TableRow>
                         <TableHead className="w-[40px]">
                              <Checkbox
-                                checked={selectedIds.length > 0 && selectedIds.length === documents.length}
+                                checked={selectedIds.length > 0 && selectedIds.length === documents.length && documents.length > 0}
                                 onCheckedChange={(checked) => onSelectAll(!!checked)}
                                 aria-label="Select all"
                                 disabled={documents.length === 0}
@@ -404,7 +408,7 @@ function DocumentTable({ documents, onDelete, loading, allowedCategories, deleti
                         </TableRow>
                     ) : (
                         documents.map((doc) => {
-                            const canDelete = userAllowedCategories.includes(doc.category) || userEmail === 'ceo@mentorme.com';
+                            const canDelete = allowedCategories.includes(doc.category) || userEmail === 'ceo@mentorme.com';
                             return (
                                 <TableRow key={doc.id} data-state={selectedIds.includes(doc.id) && "selected"}>
                                     <TableCell>
@@ -480,7 +484,7 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete the document from storage.
-          </ADCDescription>
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
@@ -503,3 +507,5 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
 function Card({children}: {children: React.ReactNode}) {
     return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
 }
+
+    
