@@ -30,7 +30,7 @@ import * as z from 'zod';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Grievance, GrievanceClientData } from '@/types';
-import { getGrievances, addGrievance } from '@/services/grievanceService';
+import { getGrievances, addGrievance, markGrievancesAsSeen } from '@/services/grievanceService';
 import { format } from 'date-fns';
 
 const grievanceSchema = z.object({
@@ -103,17 +103,17 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="subject" className="text-right">Subjek</Label>
-              <Input id="subject" {...register('subject')} className="col-span-3" />
+              <Input id="subject" {...register('subject')} className="col-span-3" disabled={isSubmitting} />
               {errors.subject && <p className="col-span-4 text-right text-red-500 text-xs">{errors.subject.message}</p>}
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="description" className="text-right pt-2">Deskripsi</Label>
-              <Textarea id="description" {...register('description')} className="col-span-3" />
+              <Textarea id="description" {...register('description')} className="col-span-3" disabled={isSubmitting}/>
               {errors.description && <p className="col-span-4 text-right text-red-500 text-xs">{errors.description.message}</p>}
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="file" className="text-right">Lampiran</Label>
-              <Input id="file" type="file" {...register('file')} className="col-span-3" />
+              <Input id="file" type="file" {...register('file')} className="col-span-3" disabled={isSubmitting} />
               {errors.file && <p className="col-span-4 text-right text-red-500 text-xs">{errors.file.message?.toString()}</p>}
             </div>
           </div>
@@ -160,8 +160,12 @@ export default function GrievancesPage() {
   useEffect(() => {
     if (user && user.uid && user.email) {
       fetchGrievances();
+      if (isCEO) {
+        // Mark grievances as seen when the CEO opens the page
+        markGrievancesAsSeen();
+      }
     }
-  }, [user]);
+  }, [user, isCEO]);
 
 
   if (loading) {
@@ -203,7 +207,7 @@ export default function GrievancesPage() {
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
                         </CardContent>
                         <CardFooter className="flex justify-between items-center">
-                            <div></div>
+                             <div></div>
                              {g.fileUrl && (
                                 <Button asChild variant="outline" size="sm">
                                     <a href={g.fileUrl} target="_blank" rel="noopener noreferrer">

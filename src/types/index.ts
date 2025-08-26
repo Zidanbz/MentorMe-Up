@@ -62,6 +62,7 @@ export type Grievance = {
   filePath?: string;
   createdAt: Date;
   status: 'Open' | 'In Progress' | 'Resolved';
+  seenByCEO: boolean;
 };
 
 // Type for data sent from client to server for grievance submission

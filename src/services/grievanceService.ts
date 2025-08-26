@@ -10,6 +10,8 @@ import {
   where,
   orderBy,
   Timestamp,
+  writeBatch,
+  limit,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -79,9 +81,35 @@ export const addGrievance = async (
     description: data.description,
     createdAt: Timestamp.now(),
     status: 'Open' as const,
+    seenByCEO: false,
     ...(fileUrl && { fileUrl }),
     ...(filePath && { filePath }),
   };
 
   await addDoc(grievanceCollection, newGrievance);
+};
+
+
+export const hasNewGrievances = async (): Promise<boolean> => {
+    const q = query(
+        grievanceCollection, 
+        where('seenByCEO', '==', false),
+        limit(1)
+    );
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+};
+
+export const markGrievancesAsSeen = async (): Promise<void> => {
+    const q = query(grievanceCollection, where('seenByCEO', '==', false));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { seenByCEO: true });
+    });
+
+    await batch.commit();
 };

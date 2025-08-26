@@ -33,7 +33,7 @@ import {
   } from "@/components/ui/select"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Eye, FileUp, MoreVertical, Trash, Loader2, Search } from 'lucide-react';
+import { Download, Eye, FileUp, MoreVertical, Trash, Loader2, Search, Trash2 } from 'lucide-react';
 import type { Document } from '@/types';
 import {
     DropdownMenu,
@@ -59,9 +59,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
-import { getDocuments, addDocument, deleteDocument } from '@/services/documentService';
+import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
 import { useAuth } from '@/hooks/useAuth';
 import { Pagination } from '@/components/shared/Pagination';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const documentSchema = z.object({
@@ -95,6 +96,8 @@ export default function DocumentsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const itemsPerPage = 10;
 
 
@@ -120,6 +123,7 @@ export default function DocumentsPage() {
     
     useEffect(() => {
         setCurrentPage(1);
+        setSelectedIds([]);
     }, [activeTab, searchTerm]);
 
     const handleAddDocument = async (data: DocumentFormData) => {
@@ -128,8 +132,10 @@ export default function DocumentsPage() {
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments();
             setIsUploadDialogOpen(false);
+            return true;
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
+            return false;
         }
     };
 
@@ -145,19 +151,51 @@ export default function DocumentsPage() {
             setDeletingId(null);
         }
     };
+
+    const handleBulkDelete = async () => {
+        setIsBulkDeleting(true);
+        try {
+            const documentsToDelete = documents.filter(doc => selectedIds.includes(doc.id));
+            await deleteDocuments(documentsToDelete);
+            toast({ title: 'Success', description: `${selectedIds.length} documents deleted.` });
+            setSelectedIds([]);
+            fetchDocuments();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete selected documents.' });
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
     
     const filteredDocuments = useMemo(() => {
         return documents.filter(doc => {
             const matchesCategory = activeTab === 'all' || doc.category === activeTab;
             const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesCategory && matchesSearch;
+            const userCanSee = userAllowedCategories.includes(doc.category);
+            return matchesCategory && matchesSearch && (userEmail === 'ceo@mentorme.com' || userCanSee);
         });
-    }, [documents, activeTab, searchTerm]);
+    }, [documents, activeTab, searchTerm, userAllowedCategories, userEmail]);
 
     const paginatedDocuments = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
     }, [filteredDocuments, currentPage, itemsPerPage]);
+
+     const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(paginatedDocuments.map(d => d.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(item => item !== id));
+        }
+    };
 
     return (
         <AppLayout>
@@ -177,24 +215,62 @@ export default function DocumentsPage() {
                 allowedCategories={userAllowedCategories}
             />
             
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Search documents by name..."
-                    className="pl-10"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+             <div className="flex justify-between items-center gap-4">
+                <div className="relative flex-grow">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search documents by name..."
+                        className="pl-10"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                {selectedIds.length > 0 && (
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isBulkDeleting}>
+                                {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete ({selectedIds.length})
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will permanently delete {selectedIds.length} document(s). This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                                    Delete
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="all">All</TabsTrigger>
-                {allCategories.map(cat => <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>)}
+                {allCategories.map(cat => (
+                    (userEmail === 'ceo@mentorme.com' || userAllowedCategories.includes(cat)) &&
+                    <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
+                ))}
             </TabsList>
 
             <TabsContent value={activeTab} forceMount>
-                 <DocumentTable documents={paginatedDocuments} onDelete={handleDeleteDocument} loading={loading} allowedCategories={userAllowedCategories} deletingId={deletingId} />
+                 <DocumentTable 
+                    documents={paginatedDocuments} 
+                    onDelete={handleDeleteDocument} 
+                    loading={loading} 
+                    allowedCategories={userAllowedCategories} 
+                    deletingId={deletingId}
+                    selectedIds={selectedIds}
+                    onSelectAll={handleSelectAll}
+                    onSelectOne={handleSelectOne}
+                />
             </TabsContent>
             </Tabs>
 
@@ -212,7 +288,7 @@ export default function DocumentsPage() {
 type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddDocument: (data: DocumentFormData) => void;
+    onAddDocument: (data: DocumentFormData) => Promise<boolean>;
     allowedCategories: Document['category'][];
 }
 
@@ -222,13 +298,17 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
         defaultValues: { category: allowedCategories[0] }
     });
 
-    const onSubmit = (data: DocumentFormData) => {
-        onAddDocument(data);
+    const onSubmit = async (data: DocumentFormData) => {
+        const success = await onAddDocument(data);
+        if (success) {
+            reset();
+            setIsOpen(false);
+        }
     };
 
     useEffect(() => {
         if (isOpen && allowedCategories.length > 0) {
-             reset({ category: allowedCategories[0] });
+             reset({ category: allowedCategories[0], file: undefined });
         }
     }, [isOpen, reset, allowedCategories]);
 
@@ -245,7 +325,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="file" className="text-right">File</Label>
-                            <Input id="file" type="file" className="col-span-3" {...register('file')} />
+                            <Input id="file" type="file" className="col-span-3" {...register('file')} disabled={isSubmitting} />
                              {errors.file && <p className="col-span-4 text-right text-red-500 text-xs">{errors.file.message?.toString()}</p>}
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -254,7 +334,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                                 name="category"
                                 control={control}
                                 render={({ field }) => (
-                                     <Select onValueChange={field.onChange} value={field.value}>
+                                     <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -280,13 +360,30 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     );
 }
 
-function DocumentTable({ documents, onDelete, loading, allowedCategories, deletingId }: { documents: Document[], onDelete: (doc: Document) => void, loading: boolean, allowedCategories: Document['category'][], deletingId: string | null }) {
+function DocumentTable({ documents, onDelete, loading, allowedCategories, deletingId, selectedIds, onSelectAll, onSelectOne }: { 
+    documents: Document[], 
+    onDelete: (doc: Document) => void, 
+    loading: boolean, 
+    allowedCategories: Document['category'][], 
+    deletingId: string | null,
+    selectedIds: string[],
+    onSelectAll: (checked: boolean) => void,
+    onSelectOne: (id: string, checked: boolean) => void,
+}) {
     
     return (
         <Card>
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[40px]">
+                             <Checkbox
+                                checked={selectedIds.length > 0 && selectedIds.length === documents.length}
+                                onCheckedChange={(checked) => onSelectAll(!!checked)}
+                                aria-label="Select all"
+                                disabled={documents.length === 0}
+                            />
+                        </TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Category</TableHead>
@@ -297,19 +394,26 @@ function DocumentTable({ documents, onDelete, loading, allowedCategories, deleti
                 <TableBody>
                      {loading ? (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24">
+                            <TableCell colSpan={6} className="text-center h-24">
                                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                             </TableCell>
                         </TableRow>
                     ) : documents.length === 0 ? (
                          <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24">No documents found.</TableCell>
+                            <TableCell colSpan={6} className="text-center h-24">No documents found.</TableCell>
                         </TableRow>
                     ) : (
                         documents.map((doc) => {
-                            const canDelete = allowedCategories.includes(doc.category);
+                            const canDelete = userAllowedCategories.includes(doc.category) || userEmail === 'ceo@mentorme.com';
                             return (
-                                <TableRow key={doc.id}>
+                                <TableRow key={doc.id} data-state={selectedIds.includes(doc.id) && "selected"}>
+                                    <TableCell>
+                                         <Checkbox
+                                            checked={selectedIds.includes(doc.id)}
+                                            onCheckedChange={(checked) => onSelectOne(doc.id, !!checked)}
+                                            aria-label="Select row"
+                                        />
+                                    </TableCell>
                                     <TableCell className="font-medium">{doc.name}</TableCell>
                                     <TableCell>{doc.type}</TableCell>
                                     <TableCell>{doc.category}</TableCell>
@@ -376,7 +480,7 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete the document from storage.
-          </AlertDialogDescription>
+          </ADCDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

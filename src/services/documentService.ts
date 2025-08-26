@@ -1,6 +1,6 @@
 import { db, storage } from '@/lib/firebase';
 import type { Document } from '@/types';
-import { collection, addDoc, getDocs, doc, deleteDoc, Timestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, Timestamp, query, orderBy, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const documentsCollection = collection(db, 'documents');
@@ -49,4 +49,23 @@ export const deleteDocument = async (document: Document): Promise<void> => {
 
     const storageRef = ref(storage, document.storagePath);
     await deleteObject(storageRef);
+};
+
+export const deleteDocuments = async (documents: Document[]): Promise<void> => {
+    if (documents.length === 0) return;
+
+    // Delete documents from Firestore in a batch
+    const batch = writeBatch(db);
+    documents.forEach(document => {
+        const docRef = doc(db, 'documents', document.id);
+        batch.delete(docRef);
+    });
+    await batch.commit();
+
+    // Delete files from Storage
+    const deletePromises = documents.map(document => {
+        const storageRef = ref(storage, document.storagePath);
+        return deleteObject(storageRef);
+    });
+    await Promise.all(deletePromises);
 };
