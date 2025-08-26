@@ -41,6 +41,8 @@ export default function UserGuidePage() {
                     <ul className="list-disc pl-5 space-y-1">
                       <li><strong>Melihat & Mengunduh:</strong> Semua pengguna dapat melihat dan mengunduh dokumen dari kategori apa pun.</li>
                       <li><strong>Mengunggah & Menghapus:</strong> Hanya pengguna dengan peran tertentu yang dapat mengunggah atau menghapus dokumen dalam kategori yang diizinkan.</li>
+                      <li><strong>Pencarian:</strong> Gunakan kolom pencarian di bagian atas untuk memfilter dokumen berdasarkan nama.</li>
+                      <li><strong>Penghapusan Massal:</strong> Centang kotak di samping dokumen untuk memilih beberapa file. Tombol "Delete" akan muncul untuk menghapus semua item yang dipilih sekaligus.</li>
                     </ul>
                     <h4 className="font-semibold pt-2">Izin Peran:</h4>
                     <ul className="list-disc pl-5 space-y-1">
@@ -93,7 +95,20 @@ export default function UserGuidePage() {
                     <ul className="list-disc pl-5 space-y-1">
                       <li><strong>Membuat Pengaduan:</strong> Klik tombol "Buat Pengaduan". Isi subjek, deskripsi, dan lampirkan file jika perlu.</li>
                       <li><strong>Melihat Pengaduan (Anggota):</strong> Anda hanya dapat melihat daftar pengaduan yang telah Anda kirimkan sendiri.</li>
+                      <li><strong>Notifikasi untuk CEO:</strong> CEO akan melihat ikon bintang <span className="inline-block text-amber-500">★</span> di menu navigasi "Pengaduan" jika ada pengaduan baru yang belum dilihat.</li>
                       <li><strong>Melihat Pengaduan (CEO):</strong> CEO dapat melihat semua pengaduan yang dikirim oleh seluruh anggota tim untuk ditindaklanjuti.</li>
+                    </ul>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-7">
+                <AccordionTrigger>Umpan Balik & Interaksi</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pl-2">
+                    <p>Aplikasi ini dirancang untuk memberikan umpan balik yang jelas kepada pengguna.</p>
+                     <ul className="list-disc pl-5 space-y-1">
+                      <li><strong>Notifikasi Pop-up:</strong> Setelah melakukan aksi seperti mengunggah dokumen atau mengirim pengaduan, sebuah notifikasi akan muncul di pojok layar untuk memberitahu Anda apakah aksi tersebut berhasil atau gagal.</li>
+                      <li><strong>Tombol Nonaktif:</strong> Saat sebuah proses sedang berjalan (misalnya mengunggah file), tombol terkait akan dinonaktifkan dan menampilkan ikon memuat. Ini untuk mencegah klik ganda yang tidak disengaja.</li>
                     </ul>
                   </div>
                 </AccordionContent>
@@ -104,7 +119,8 @@ export default function UserGuidePage() {
                   <div className="space-y-2 pl-2">
                     <p>Anda dapat mengelola akun Anda langsung dari aplikasi.</p>
                      <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>Ubah Kata Sandi:</strong> Klik ikon profil Anda di pojok kanan atas, lalu pilih "Change Password" untuk memperbarui kata sandi Anda.</li>
+                      <li><strong>Profil:</strong> Klik menu di pojok kanan atas, lalu pilih "Profile" untuk melihat detail akun Anda.</li>
+                      <li><strong>Ubah Kata Sandi:</strong> Anda dapat mengubah kata sandi dari halaman profil atau langsung dari menu pengguna.</li>
                       <li><strong>Keluar:</strong> Klik "Log out" dari menu yang sama untuk keluar dari akun Anda dengan aman.</li>
                     </ul>
                   </div>
