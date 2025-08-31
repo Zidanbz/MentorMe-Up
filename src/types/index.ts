@@ -76,3 +76,12 @@ export type GrievanceClientData = {
         type: string;
     };
 };
+
+export type UserProfile = {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  role: 'CEO' | 'CFO' | 'COO' | 'CTO' | 'CMO' | 'CHRO' | 'CDO' | 'Member';
+  phone?: string;
+}

@@ -1,6 +1,7 @@
 import { getProjects } from './projectService';
 import { Timestamp } from 'firebase/firestore';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { getUsers } from './userService';
 
 const FONNTE_API_URL = 'https://api.fonnte.com/send';
 
@@ -46,10 +47,10 @@ export async function sendScheduledReminders() {
   const projects = await getProjects();
   const today = startOfDay(new Date());
 
-  const ceoPhoneNumber = process.env.CEO_PHONE_NUMBER;
-  const cooPhoneNumber = process.env.COO_PHONE_NUMBER;
-  
-  const targetNumbers = [ceoPhoneNumber, cooPhoneNumber].filter(Boolean) as string[];
+  const allUsers = await getUsers();
+  const targetUsers = allUsers.filter(u => u.role === 'CEO' || u.role === 'COO');
+  const targetNumbers = targetUsers.map(u => u.phone).filter(Boolean) as string[];
+
 
   if (targetNumbers.length === 0) {
     console.warn("No phone numbers configured for CEO or COO. Skipping reminders.");
