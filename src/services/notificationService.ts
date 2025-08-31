@@ -1,3 +1,4 @@
+'use server';
 
 import { getReminders, deleteReminder, getProjects } from './projectService';
 import { Timestamp } from 'firebase/firestore';
