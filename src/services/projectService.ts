@@ -74,6 +74,7 @@ export const addMilestone = async (projectId: string, milestone: Omit<Milestone,
             id: uuidv4(),
             name: milestone.name,
             tasks: [],
+            reminderEnabled: false,
             ...(milestone.dueDate && { dueDate: Timestamp.fromDate(milestone.dueDate as Date) })
         };
         const newMilestones = [...projectData.milestones, newMilestone];
@@ -93,6 +94,20 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
         transaction.update(projectRef, { milestones: newMilestones });
     });
 }
+
+export const toggleMilestoneReminder = async (projectId: string, milestoneId: string, status: boolean): Promise<void> => {
+    const projectRef = doc(db, 'projects', projectId);
+    await runTransaction(db, async (transaction) => {
+        const projectDoc = await transaction.get(projectRef);
+        if (!projectDoc.exists()) throw new Error("Project not found");
+        const projectData = projectDoc.data() as Project;
+
+        const newMilestones = projectData.milestones.map(m => 
+            m.id === milestoneId ? { ...m, reminderEnabled: status } : m
+        );
+        transaction.update(projectRef, { milestones: newMilestones });
+    });
+};
 
 
 // Task functions

@@ -18,12 +18,13 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, Calendar as CalendarIcon } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, Calendar as CalendarIcon, Bell, BellOff } from 'lucide-react';
 import type { Project, Milestone, Task } from '@/types';
-import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
+import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject, toggleMilestoneReminder } from '@/services/projectService';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
 
 // Schemas
 const projectSchema = z.object({ name: z.string().min(1, "Project name is required") });
@@ -42,6 +43,9 @@ export default function ProjectTaskPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
+  const { user } = useAuth();
+  const canManageReminders = user?.email === 'ceo@mentorme.com' || user?.email === 'coo@mentorme.com';
+
 
   const fetchProjects = async () => {
     try {
@@ -140,6 +144,19 @@ export default function ProjectTaskPage() {
     }
   }
 
+  const handleToggleReminder = async (projectId: string, milestoneId: string, currentStatus: boolean) => {
+    setProcessingAction(`reminder-toggle-${milestoneId}`);
+    try {
+        await toggleMilestoneReminder(projectId, milestoneId, !currentStatus);
+        fetchProjects();
+        toast({ title: 'Success', description: `Reminder ${!currentStatus ? 'enabled' : 'disabled'}.` });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update reminder status.' });
+    } finally {
+        setProcessingAction(null);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="flex flex-col gap-6">
@@ -178,6 +195,8 @@ export default function ProjectTaskPage() {
                 onDeleteTask={handleDeleteTask}
                 onDeleteMilestone={handleDeleteMilestone}
                 onDeleteProject={() => handleDeleteProject(project.id)}
+                onToggleReminder={handleToggleReminder}
+                canManageReminders={canManageReminders}
                 processingAction={processingAction}
               />
             ))}
@@ -189,7 +208,7 @@ export default function ProjectTaskPage() {
 }
 
 // Project Components
-function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, processingAction }: {
+function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, onToggleReminder, canManageReminders, processingAction }: {
   project: Project,
   onAddMilestone: (data: z.infer<typeof milestoneSchema>) => Promise<boolean>,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
@@ -197,6 +216,8 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDeleteMilestone: (projectId: string, milestoneId: string) => void,
   onDeleteProject: () => void,
+  onToggleReminder: (projectId: string, milestoneId: string, currentStatus: boolean) => void,
+  canManageReminders: boolean,
   processingAction: string | null,
 }) {
   return (
@@ -230,6 +251,8 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
+                    onToggleReminder={onToggleReminder}
+                    canManageReminders={canManageReminders}
                     processingAction={processingAction}
                 />
             ))}
@@ -278,13 +301,15 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
 
 
 // Milestone Components
-function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
+function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, onToggleReminder, canManageReminders, processingAction }: {
   projectId: string,
   milestone: Milestone,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
+  onToggleReminder: (projectId: string, milestoneId: string, currentStatus: boolean) => void,
+  canManageReminders: boolean,
   processingAction: string | null,
 }) {
   const completedTasks = useMemo(() => milestone.tasks ? milestone.tasks.filter(t => t.completed).length : 0, [milestone.tasks]);
@@ -333,7 +358,14 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                         { name: 'dueDate', label: 'Due Date', type: 'date' },
                     ]}
                 />
-                <MilestoneActions onDelete={onDelete} isDeleting={processingAction === `milestone-delete-${milestone.id}`} />
+                <MilestoneActions 
+                    milestone={milestone}
+                    onDelete={onDelete}
+                    onToggleReminder={() => onToggleReminder(projectId, milestone.id, !!milestone.reminderEnabled)}
+                    canManageReminders={canManageReminders}
+                    isDeleting={processingAction === `milestone-delete-${milestone.id}`}
+                    isTogglingReminder={processingAction === `reminder-toggle-${milestone.id}`}
+                />
             </div>
         </div>
         <div className="space-y-2 mt-4">
@@ -353,7 +385,14 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   )
 }
 
-function MilestoneActions({ onDelete, isDeleting }: { onDelete: () => void, isDeleting: boolean }) {
+function MilestoneActions({ milestone, onDelete, onToggleReminder, canManageReminders, isDeleting, isTogglingReminder }: { 
+    milestone: Milestone,
+    onDelete: () => void, 
+    onToggleReminder: () => void,
+    canManageReminders: boolean,
+    isDeleting: boolean,
+    isTogglingReminder: boolean,
+}) {
     return (
         <AlertDialog>
             <DropdownMenu>
@@ -363,6 +402,14 @@ function MilestoneActions({ onDelete, isDeleting }: { onDelete: () => void, isDe
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                     {milestone.dueDate && canManageReminders && (
+                        <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={onToggleReminder} disabled={isTogglingReminder}>
+                            {isTogglingReminder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                                milestone.reminderEnabled ? <BellOff className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />
+                            }
+                            {milestone.reminderEnabled ? 'Disable Reminder' : 'Enable Reminder'}
+                        </DropdownMenuItem>
+                     )}
                      <AlertDialogTrigger asChild>
                         <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
                            <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone

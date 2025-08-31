@@ -43,6 +43,7 @@ export type Milestone = {
   name: string;
   dueDate?: Timestamp | Date;
   tasks: Task[];
+  reminderEnabled?: boolean;
 };
 
 export type Project = {
