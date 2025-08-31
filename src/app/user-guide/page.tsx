@@ -78,10 +78,28 @@ export default function UserGuidePage() {
                     <h4 className="font-semibold pt-2">Cara Menggunakan:</h4>
                     <ul className="list-disc pl-5 space-y-1">
                       <li><strong>Buat Proyek:</strong> Klik tombol "Add Project" untuk membuat sebuah proyek baru.</li>
-                      <li><strong>Tambah Milestone:</strong> Di dalam setiap proyek, klik "Add Milestone" untuk membuat tahapan-tahapan penting. Anda juga bisa menetapkan tanggal jatuh tempo untuk setiap milestone.</li>
+                      <li><strong>Tambah Milestone:</strong> Di dalam setiap proyek, klik "Add Milestone" untuk membuat tahapan-tahapan penting.</li>
                       <li><strong>Tambah Tugas:</strong> Di dalam setiap milestone, klik "Add Task" untuk menambahkan tugas-tugas spesifik. Anda bisa memberikan deskripsi dan tanggal jatuh tempo untuk setiap tugas.</li>
                       <li><strong>Selesaikan Tugas:</strong> Centang kotak di samping nama tugas untuk menandainya sebagai selesai. Progres bar milestone akan diperbarui secara otomatis.</li>
-                       <li><strong>Kelola Item:</strong> Gunakan menu tiga titik di samping setiap proyek, milestone, atau tugas untuk mengedit atau menghapusnya.</li>
+                       <li><strong>Kelola Item:</strong> Gunakan menu tiga titik di samping setiap proyek, milestone, atau tugas untuk menghapusnya.</li>
+                    </ul>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+               <AccordionItem value="item-8">
+                <AccordionTrigger>Pengingat (Reminders)</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 pl-2">
+                    <p>Fitur ini adalah pusat komando untuk mengirimkan notifikasi penting melalui WhatsApp. Hanya dapat diakses oleh CEO dan COO.</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li><strong>Dua Jenis Pengingat:</strong>
+                            <ul className="list-['-_'] pl-5 space-y-1 mt-1">
+                                <li><strong>Pengingat Manual:</strong> Klik tombol "Create Reminder" untuk membuat pengingat kustom. Anda bisa menulis pesan, memilih siapa target penerimanya (berdasarkan peran), dan menentukan tanggal pengiriman.</li>
+                                <li><strong>Pengingat Tugas Otomatis:</strong> Sistem secara otomatis akan memeriksa setiap hari. Jika ada tugas yang belum selesai dan akan jatuh tempo besok, pengingat akan dikirimkan ke CEO dan COO.</li>
+                            </ul>
+                        </li>
+                      <li><strong>Tinjauan Semua Tugas:</strong> Halaman ini juga menampilkan tabel berisi semua tugas dari seluruh proyek, memudahkan Anda untuk memantau progres dan tenggat waktu dalam satu tampilan.</li>
+                      <li><strong>Cara Kerja:</strong> Semua pengingat akan dikirimkan ke nomor WhatsApp pengguna yang sesuai dengan peran target pada tanggal yang telah dijadwalkan (membutuhkan pengaturan cron job di server).</li>
                     </ul>
                   </div>
                 </AccordionContent>
