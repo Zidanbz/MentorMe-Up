@@ -62,7 +62,7 @@ export const deleteProject = async (id: string): Promise<void> => {
 
 
 // Milestone functions
-export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks'>): Promise<void> => {
+export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks' | 'reminderEnabled' | 'dueDate'>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
@@ -75,9 +75,33 @@ export const addMilestone = async (projectId: string, milestone: Omit<Milestone,
             name: milestone.name,
             tasks: [],
             reminderEnabled: false,
-            ...(milestone.dueDate && { dueDate: Timestamp.fromDate(milestone.dueDate as Date) })
         };
         const newMilestones = [...projectData.milestones, newMilestone];
+        transaction.update(projectRef, { milestones: newMilestones });
+    });
+};
+
+export const updateMilestone = async (projectId: string, milestoneId: string, data: Partial<Omit<Milestone, 'id' | 'name' | 'tasks'>>): Promise<void> => {
+    const projectRef = doc(db, 'projects', projectId);
+    await runTransaction(db, async (transaction) => {
+        const projectDoc = await transaction.get(projectRef);
+        if (!projectDoc.exists()) throw new Error("Project not found");
+        const projectData = projectDoc.data() as Project;
+
+        const milestoneUpdate: { [key: string]: any } = {};
+        if (data.dueDate === null) {
+            milestoneUpdate.dueDate = null;
+        } else if (data.dueDate) {
+            milestoneUpdate.dueDate = Timestamp.fromDate(data.dueDate as Date);
+        }
+        if (data.reminderEnabled !== undefined) {
+             milestoneUpdate.reminderEnabled = data.reminderEnabled;
+        }
+
+
+        const newMilestones = projectData.milestones.map(m => 
+            m.id === milestoneId ? { ...m, ...milestoneUpdate } : m
+        );
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
@@ -94,21 +118,6 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
         transaction.update(projectRef, { milestones: newMilestones });
     });
 }
-
-export const toggleMilestoneReminder = async (projectId: string, milestoneId: string, status: boolean): Promise<void> => {
-    const projectRef = doc(db, 'projects', projectId);
-    await runTransaction(db, async (transaction) => {
-        const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists()) throw new Error("Project not found");
-        const projectData = projectDoc.data() as Project;
-
-        const newMilestones = projectData.milestones.map(m => 
-            m.id === milestoneId ? { ...m, reminderEnabled: status } : m
-        );
-        transaction.update(projectRef, { milestones: newMilestones });
-    });
-};
-
 
 // Task functions
 export const addTask = async (projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed'>): Promise<void> => {
