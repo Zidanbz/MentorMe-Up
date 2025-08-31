@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -393,6 +394,21 @@ function MilestoneActions({ milestone, onDelete, onToggleReminder, canManageRemi
     isDeleting: boolean,
     isTogglingReminder: boolean,
 }) {
+    const hasDueDate = !!milestone.dueDate;
+    
+    const ReminderMenuItem = () => (
+        <DropdownMenuItem 
+            onSelect={e => e.preventDefault()} 
+            onClick={onToggleReminder} 
+            disabled={isTogglingReminder || !hasDueDate}
+        >
+            {isTogglingReminder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                milestone.reminderEnabled ? <BellOff className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />
+            }
+            {milestone.reminderEnabled ? 'Disable Reminder' : 'Enable Reminder'}
+        </DropdownMenuItem>
+    );
+
     return (
         <AlertDialog>
             <DropdownMenu>
@@ -402,14 +418,25 @@ function MilestoneActions({ milestone, onDelete, onToggleReminder, canManageRemi
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                     {milestone.dueDate && canManageReminders && (
-                        <DropdownMenuItem onSelect={e => e.preventDefault()} onClick={onToggleReminder} disabled={isTogglingReminder}>
-                            {isTogglingReminder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
-                                milestone.reminderEnabled ? <BellOff className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />
-                            }
-                            {milestone.reminderEnabled ? 'Disable Reminder' : 'Enable Reminder'}
-                        </DropdownMenuItem>
-                     )}
+                    {canManageReminders && (
+                        !hasDueDate ? (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        {/* The button is wrapped in a span to allow the tooltip to show when disabled */}
+                                        <span tabIndex={0} className="w-full">
+                                            <ReminderMenuItem />
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Set a due date to enable reminders.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ) : (
+                            <ReminderMenuItem />
+                        )
+                    )}
                      <AlertDialogTrigger asChild>
                         <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
                            <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
