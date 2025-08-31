@@ -41,9 +41,7 @@ export type Task = {
 export type Milestone = {
   id: string;
   name: string;
-  dueDate?: Timestamp | Date;
   tasks: Task[];
-  reminderEnabled?: boolean;
 };
 
 export type Project = {
@@ -52,6 +50,14 @@ export type Project = {
   milestones: Milestone[];
   createdAt: Timestamp;
 };
+
+export type Reminder = {
+    id: string;
+    message: string;
+    targetRole: UserProfile['role'];
+    reminderDate: Timestamp | Date;
+    createdAt: Timestamp;
+}
 
 export type Grievance = {
   id: string;

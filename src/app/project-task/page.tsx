@@ -18,14 +18,12 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, Calendar as CalendarIcon, Bell, BellOff } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import type { Project, Milestone, Task } from '@/types';
-import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject, updateMilestone } from '@/services/projectService';
+import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
-import { Switch } from '@/components/ui/switch';
 
 // Schemas
 const projectSchema = z.object({ name: z.string().min(1, "Project name is required") });
@@ -37,10 +35,6 @@ const taskSchema = z.object({
   description: z.string().optional(),
   dueDate: z.date().optional(),
 });
-const reminderSchema = z.object({
-    dueDate: z.date().nullable(),
-    reminderEnabled: z.boolean(),
-});
 
 
 export default function ProjectTaskPage() {
@@ -48,9 +42,6 @@ export default function ProjectTaskPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
-  const { user } = useAuth();
-  const canManageReminders = user?.email === 'ceo@mentorme.com' || user?.email === 'coo@mentorme.com';
-
 
   const fetchProjects = async () => {
     try {
@@ -89,24 +80,6 @@ export default function ProjectTaskPage() {
       return false;
     }
   };
-
-  const handleUpdateMilestone = async (projectId: string, milestoneId: string, data: z.infer<typeof reminderSchema>) => {
-    setProcessingAction(`reminder-toggle-${milestoneId}`);
-    try {
-        await updateMilestone(projectId, milestoneId, {
-            dueDate: data.dueDate,
-            reminderEnabled: data.reminderEnabled,
-        });
-        fetchProjects();
-        toast({ title: 'Success', description: 'Reminder settings updated.' });
-        return true;
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update reminder.' });
-        return false;
-    } finally {
-        setProcessingAction(null);
-    }
-  }
 
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
     try {
@@ -171,7 +144,7 @@ export default function ProjectTaskPage() {
     <AppLayout>
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Projects & Tasks</h1>
+          <h1 className="text-3xl font-bold">Projects &amp; Tasks</h1>
           <FormDialog
             trigger={<Button><PlusCircle className="mr-2 h-4 w-4" /> Add Project</Button>}
             title="Add New Project"
@@ -200,13 +173,11 @@ export default function ProjectTaskPage() {
                 key={project.id}
                 project={project}
                 onAddMilestone={(data) => handleAddMilestone(project.id, data)}
-                onUpdateMilestone={handleUpdateMilestone}
                 onAddTask={handleAddTask}
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
                 onDeleteMilestone={handleDeleteMilestone}
                 onDeleteProject={() => handleDeleteProject(project.id)}
-                canManageReminders={canManageReminders}
                 processingAction={processingAction}
               />
             ))}
@@ -218,16 +189,14 @@ export default function ProjectTaskPage() {
 }
 
 // Project Components
-function ProjectItem({ project, onAddMilestone, onUpdateMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, canManageReminders, processingAction }: {
+function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, processingAction }: {
   project: Project,
   onAddMilestone: (data: z.infer<typeof milestoneSchema>) => Promise<boolean>,
-  onUpdateMilestone: (projectId: string, milestoneId: string, data: z.infer<typeof reminderSchema>) => Promise<boolean>,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDeleteMilestone: (projectId: string, milestoneId: string) => void,
   onDeleteProject: () => void,
-  canManageReminders: boolean,
   processingAction: string | null,
 }) {
   return (
@@ -249,19 +218,17 @@ function ProjectItem({ project, onAddMilestone, onUpdateMilestone, onAddTask, on
         </div>
       </CardHeader>
       <CardContent>
-        {project.milestones && project.milestones.length > 0 ? (
+        {project.milestones &amp;&amp; project.milestones.length > 0 ? (
            <Accordion type="multiple">
             {project.milestones.map(milestone => (
                 <MilestoneItem
                     key={milestone.id}
                     projectId={project.id}
                     milestone={milestone}
-                    onUpdateMilestone={onUpdateMilestone}
                     onAddTask={onAddTask}
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
-                    canManageReminders={canManageReminders}
                     processingAction={processingAction}
                 />
             ))}
@@ -310,43 +277,24 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
 
 
 // Milestone Components
-function MilestoneItem({ projectId, milestone, onUpdateMilestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, canManageReminders, processingAction }: {
+function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
   projectId: string,
   milestone: Milestone,
-  onUpdateMilestone: (projectId: string, milestoneId: string, data: z.infer<typeof reminderSchema>) => Promise<boolean>,
   onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
-  canManageReminders: boolean,
   processingAction: string | null,
 }) {
   const completedTasks = useMemo(() => milestone.tasks ? milestone.tasks.filter(t => t.completed).length : 0, [milestone.tasks]);
   const totalTasks = useMemo(() => milestone.tasks ? milestone.tasks.length : 0, [milestone.tasks]);
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   
-  const dueDate = useMemo(() => {
-    if (!milestone.dueDate) return null;
-    if (milestone.dueDate instanceof Timestamp) {
-        return milestone.dueDate.toDate();
-    }
-    return milestone.dueDate as Date;
-  }, [milestone.dueDate]);
-
-
   return (
     <AccordionItem value={milestone.id}>
       <AccordionTrigger>
         <div className="flex-1 flex flex-col items-start text-left gap-1">
-            <div className="flex items-center gap-2">
-                <span className="font-semibold">{milestone.name}</span>
-                 {milestone.reminderEnabled && dueDate && <Bell className="h-4 w-4 text-blue-500" />}
-            </div>
-             {dueDate && (
-                <span className="text-xs text-muted-foreground font-normal">
-                    Due: {format(dueDate, 'MMM d, yyyy')}
-                </span>
-            )}
+            <span className="font-semibold">{milestone.name}</span>
         </div>
         <div className="flex-1 flex items-center justify-end pr-4">
             <span className="text-sm text-muted-foreground">{completedTasks} / {totalTasks} tasks completed</span>
@@ -371,16 +319,13 @@ function MilestoneItem({ projectId, milestone, onUpdateMilestone, onAddTask, onU
                     ]}
                 />
                 <MilestoneActions 
-                    milestone={milestone}
                     onDelete={onDelete}
-                    canManageReminders={canManageReminders}
                     isDeleting={processingAction === `milestone-delete-${milestone.id}`}
-                    onUpdateMilestone={(data) => onUpdateMilestone(projectId, milestone.id, data)}
                 />
             </div>
         </div>
         <div className="space-y-2 mt-4">
-            {milestone.tasks && milestone.tasks.map(task => (
+            {milestone.tasks &amp;&amp; milestone.tasks.map(task => (
                 <TaskItem 
                     key={task.id} 
                     task={task} 
@@ -389,19 +334,16 @@ function MilestoneItem({ projectId, milestone, onUpdateMilestone, onAddTask, onU
                     isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
-             {(!milestone.tasks || milestone.tasks.length === 0) && <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
+             {(!milestone.tasks || milestone.tasks.length === 0) &amp;&amp; <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
         </div>
       </AccordionContent>
     </AccordionItem>
   )
 }
 
-function MilestoneActions({ milestone, onDelete, canManageReminders, isDeleting, onUpdateMilestone }: { 
-    milestone: Milestone,
+function MilestoneActions({ onDelete, isDeleting }: { 
     onDelete: () => void, 
-    canManageReminders: boolean,
     isDeleting: boolean,
-    onUpdateMilestone: (data: z.infer<typeof reminderSchema>) => Promise<boolean>
 }) {
     return (
         <AlertDialog>
@@ -412,18 +354,6 @@ function MilestoneActions({ milestone, onDelete, canManageReminders, isDeleting,
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    {canManageReminders && (
-                        <ReminderDialog 
-                            milestone={milestone}
-                            onSubmit={onUpdateMilestone}
-                            trigger={
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Bell className="mr-2 h-4 w-4" />
-                                    <span>Set Reminder</span>
-                                </DropdownMenuItem>
-                            }
-                        />
-                    )}
                      <AlertDialogTrigger asChild>
                         <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
                            <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
@@ -461,10 +391,10 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
     return (
         <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
             <Checkbox id={`task-${task.id}`} checked={task.completed} onCheckedChange={(checked) => onUpdate({ completed: !!checked })} />
-            <label htmlFor={`task-${task.id}`} className={cn("flex-1 text-sm", task.completed && "line-through text-muted-foreground")}>
+            <label htmlFor={`task-${task.id}`} className={cn("flex-1 text-sm", task.completed &amp;&amp; "line-through text-muted-foreground")}>
                 {task.name}
             </label>
-            {dueDate && (
+            {dueDate &amp;&amp; (
                 <span className="text-xs text-muted-foreground">
                     Due: {format(dueDate, 'MMM d')}
                 </span>
@@ -504,101 +434,6 @@ function TaskActions({ onDelete, isDeleting }: { onDelete: () => void, isDeletin
         </AlertDialog>
     );
 }
-
-// Reminder Dialog
-function ReminderDialog({ milestone, onSubmit, trigger }: { milestone: Milestone, onSubmit: (data: z.infer<typeof reminderSchema>) => Promise<boolean>, trigger: React.ReactElement }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const { control, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm<z.infer<typeof reminderSchema>>({
-        resolver: zodResolver(reminderSchema),
-        defaultValues: {
-            dueDate: milestone.dueDate ? (milestone.dueDate as Timestamp).toDate() : null,
-            reminderEnabled: milestone.reminderEnabled || false,
-        }
-    });
-
-    useEffect(() => {
-        if (isOpen) {
-             reset({
-                dueDate: milestone.dueDate ? (milestone.dueDate as Timestamp).toDate() : null,
-                reminderEnabled: milestone.reminderEnabled || false,
-            });
-        }
-    }, [isOpen, milestone, reset]);
-    
-    const reminderEnabled = watch('reminderEnabled');
-
-    const handleFormSubmit = async (data: z.infer<typeof reminderSchema>) => {
-        const success = await onSubmit(data);
-        if (success) {
-            setIsOpen(false);
-        }
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent>
-                 <form onSubmit={handleSubmit(handleFormSubmit)}>
-                    <DialogHeader>
-                        <DialogTitle>Set Reminder for "{milestone.name}"</DialogTitle>
-                        <DialogDescription>
-                            Set a due date and enable daily reminders via WhatsApp (H-7).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                             <Label htmlFor="dueDate" className="text-right">Due Date</Label>
-                             <Controller
-                                name="dueDate"
-                                control={control}
-                                render={({ field }) => (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn("col-span-3 justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus />
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="reminderEnabled" className="text-right">Enable Reminder</Label>
-                            <Controller
-                                name="reminderEnabled"
-                                control={control}
-                                render={({ field }) => (
-                                     <Switch
-                                        id="reminderEnabled"
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        className="col-span-3"
-                                    />
-                                )}
-                            />
-                        </div>
-                        {reminderEnabled && <p className="col-span-4 text-sm text-muted-foreground text-center">Notifications will be sent daily starting 7 days before the due date.</p>}
-                    </div>
-                     <DialogFooter>
-                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 
 // Generic Form Dialog
 type FormDialogProps = {
@@ -654,7 +489,7 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !controllerField.value && "text-muted-foreground")}
+                                            className={cn("col-span-3 justify-start text-left font-normal", !controllerField.value &amp;&amp; "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {controllerField.value ? format(controllerField.value, 'PPP') : <span>Pick a date</span>}
@@ -669,14 +504,14 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
                     ) : (
                         <Input id={field.name} placeholder={field.placeholder} className="col-span-3" {...register(field.name)} />
                     )}
-                    {errors[field.name] && <p className="col-span-4 text-red-500 text-xs text-right">{errors[field.name]?.message?.toString()}</p>}
+                    {errors[field.name] &amp;&amp; <p className="col-span-4 text-red-500 text-xs text-right">{errors[field.name]?.message?.toString()}</p>}
                 </div>
             ))}
           </div>
           <DialogFooter>
             <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting &amp;&amp; <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save
             </Button>
           </DialogFooter>

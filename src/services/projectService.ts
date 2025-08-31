@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import type { Project, Milestone, Task } from '@/types';
+import type { Project, Milestone, Task, Reminder } from '@/types';
 import { 
     collection, 
     addDoc, 
@@ -12,11 +12,13 @@ import {
     orderBy,
     getDoc,
     runTransaction,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 const projectsCollection = collection(db, 'projects');
+const remindersCollection = collection(db, 'reminders');
 
 // Helper to convert single level date properties to Firestore Timestamps
 const convertDatesToTimestamps = (data: any): any => {
@@ -62,7 +64,7 @@ export const deleteProject = async (id: string): Promise<void> => {
 
 
 // Milestone functions
-export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks' | 'reminderEnabled' | 'dueDate'>): Promise<void> => {
+export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks'>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
@@ -74,34 +76,8 @@ export const addMilestone = async (projectId: string, milestone: Omit<Milestone,
             id: uuidv4(),
             name: milestone.name,
             tasks: [],
-            reminderEnabled: false,
         };
         const newMilestones = [...projectData.milestones, newMilestone];
-        transaction.update(projectRef, { milestones: newMilestones });
-    });
-};
-
-export const updateMilestone = async (projectId: string, milestoneId: string, data: Partial<Omit<Milestone, 'id' | 'name' | 'tasks'>>): Promise<void> => {
-    const projectRef = doc(db, 'projects', projectId);
-    await runTransaction(db, async (transaction) => {
-        const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists()) throw new Error("Project not found");
-        const projectData = projectDoc.data() as Project;
-
-        const milestoneUpdate: { [key: string]: any } = {};
-        if (data.dueDate === null) {
-            milestoneUpdate.dueDate = null;
-        } else if (data.dueDate) {
-            milestoneUpdate.dueDate = Timestamp.fromDate(data.dueDate as Date);
-        }
-        if (data.reminderEnabled !== undefined) {
-             milestoneUpdate.reminderEnabled = data.reminderEnabled;
-        }
-
-
-        const newMilestones = projectData.milestones.map(m => 
-            m.id === milestoneId ? { ...m, ...milestoneUpdate } : m
-        );
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
@@ -133,8 +109,8 @@ export const addTask = async (projectId: string, milestoneId: string, task: Omit
             id: uuidv4(),
             name: task.name,
             completed: false,
-            ...(task.description && { description: task.description }),
-            ...(task.dueDate && { dueDate: Timestamp.fromDate(task.dueDate as Date) })
+            ...(task.description &amp;&amp; { description: task.description }),
+            ...(task.dueDate &amp;&amp; { dueDate: Timestamp.fromDate(task.dueDate as Date) })
         }
 
         const newMilestones = projectData.milestones.map(m => {
@@ -194,3 +170,24 @@ export const deleteTask = async (projectId: string, milestoneId: string, taskId:
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
+
+// Reminder Functions
+export const getReminders = async (): Promise<Reminder[]> => {
+    const q = query(remindersCollection, orderBy('reminderDate', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Reminder));
+}
+
+export const addReminder = async (reminder: Omit<Reminder, 'id' | 'createdAt'>): Promise<void> => {
+    const newReminder = {
+        ...reminder,
+        reminderDate: Timestamp.fromDate(reminder.reminderDate as Date),
+        createdAt: serverTimestamp(),
+    }
+    await addDoc(remindersCollection, newReminder);
+}
+
+export const deleteReminder = async (id: string): Promise<void> => {
+    const docRef = doc(db, 'reminders', id);
+    await deleteDoc(docRef);
+}

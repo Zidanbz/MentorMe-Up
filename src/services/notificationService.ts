@@ -1,6 +1,6 @@
-import { getProjects } from './projectService';
+import { getReminders, deleteReminder } from './projectService';
 import { Timestamp } from 'firebase/firestore';
-import { differenceInDays, startOfDay } from 'date-fns';
+import { isToday, startOfDay } from 'date-fns';
 import { getUsers } from './userService';
 
 const FONNTE_API_URL = 'https://api.fonnte.com/send';
@@ -44,36 +44,32 @@ async function sendFonnteMessage(target: string, message: string) {
 export async function sendScheduledReminders() {
   console.log("Running scheduled reminder check...");
 
-  const projects = await getProjects();
+  const reminders = await getReminders();
+  const allUsers = await getUsers();
   const today = startOfDay(new Date());
 
-  const allUsers = await getUsers();
-  const targetUsers = allUsers.filter(u => u.role === 'CEO' || u.role === 'COO');
-  const targetNumbers = targetUsers.map(u => u.phone).filter(Boolean) as string[];
+  const remindersForToday = reminders.filter(r => isToday((r.reminderDate as Timestamp).toDate()));
 
-
-  if (targetNumbers.length === 0) {
-    console.warn("No phone numbers configured for CEO or COO. Skipping reminders.");
+  if (remindersForToday.length === 0) {
+    console.log("No reminders scheduled for today.");
     return;
   }
 
-  for (const project of projects) {
-    for (const milestone of project.milestones) {
-      if (milestone.reminderEnabled && milestone.dueDate) {
-        const dueDate = (milestone.dueDate as Timestamp).toDate();
-        const daysUntilDue = differenceInDays(dueDate, today);
+  for (const reminder of remindersForToday) {
+    const targetUsers = allUsers.filter(u => u.role === reminder.targetRole &amp;&amp; u.phone);
 
-        if (daysUntilDue >= 0 && daysUntilDue <= 7) {
-          const daysText = daysUntilDue === 0 ? "hari ini" : `${daysUntilDue} hari lagi`;
-          const message = `PENGINGAT: Milestone "${milestone.name}" dari proyek "${project.name}" akan jatuh tempo ${daysText}.`;
-
-          // Kirim notifikasi ke semua nomor target
-          for (const number of targetNumbers) {
-            await sendFonnteMessage(number, message);
-          }
-        }
+    if (targetUsers.length > 0) {
+      console.log(`Sending reminder "${reminder.message}" to role ${reminder.targetRole}`);
+      for (const user of targetUsers) {
+        await sendFonnteMessage(user.phone!, reminder.message);
       }
+    } else {
+      console.warn(`No users with phone numbers found for role: ${reminder.targetRole}`);
     }
+
+    // After sending, delete the reminder so it doesn't get sent again
+    await deleteReminder(reminder.id);
+    console.log(`Reminder ${reminder.id} sent and deleted.`);
   }
 
   console.log("Scheduled reminder check finished.");
