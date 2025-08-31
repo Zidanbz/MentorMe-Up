@@ -56,7 +56,7 @@ export async function sendScheduledReminders() {
   }
 
   for (const reminder of remindersForToday) {
-    const targetUsers = allUsers.filter(u => u.role === reminder.targetRole &amp;&amp; u.phone);
+    const targetUsers = allUsers.filter(u => u.role === reminder.targetRole && u.phone);
 
     if (targetUsers.length > 0) {
       console.log(`Sending reminder "${reminder.message}" to role ${reminder.targetRole}`);

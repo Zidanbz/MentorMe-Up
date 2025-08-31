@@ -218,7 +218,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
         </div>
       </CardHeader>
       <CardContent>
-        {project.milestones &amp;&amp; project.milestones.length > 0 ? (
+        {project.milestones && project.milestones.length > 0 ? (
            <Accordion type="multiple">
             {project.milestones.map(milestone => (
                 <MilestoneItem
@@ -325,7 +325,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
             </div>
         </div>
         <div className="space-y-2 mt-4">
-            {milestone.tasks &amp;&amp; milestone.tasks.map(task => (
+            {milestone.tasks && milestone.tasks.map(task => (
                 <TaskItem 
                     key={task.id} 
                     task={task} 
@@ -334,7 +334,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
-             {(!milestone.tasks || milestone.tasks.length === 0) &amp;&amp; <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
+             {(!milestone.tasks || milestone.tasks.length === 0) && <p className="text-xs text-muted-foreground py-2">No tasks in this milestone yet.</p>}
         </div>
       </AccordionContent>
     </AccordionItem>
@@ -391,10 +391,10 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
     return (
         <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50">
             <Checkbox id={`task-${task.id}`} checked={task.completed} onCheckedChange={(checked) => onUpdate({ completed: !!checked })} />
-            <label htmlFor={`task-${task.id}`} className={cn("flex-1 text-sm", task.completed &amp;&amp; "line-through text-muted-foreground")}>
+            <label htmlFor={`task-${task.id}`} className={cn("flex-1 text-sm", task.completed && "line-through text-muted-foreground")}>
                 {task.name}
             </label>
-            {dueDate &amp;&amp; (
+            {dueDate && (
                 <span className="text-xs text-muted-foreground">
                     Due: {format(dueDate, 'MMM d')}
                 </span>
@@ -489,7 +489,7 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !controllerField.value &amp;&amp; "text-muted-foreground")}
+                                            className={cn("col-span-3 justify-start text-left font-normal", !controllerField.value && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {controllerField.value ? format(controllerField.value, 'PPP') : <span>Pick a date</span>}
@@ -504,14 +504,14 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
                     ) : (
                         <Input id={field.name} placeholder={field.placeholder} className="col-span-3" {...register(field.name)} />
                     )}
-                    {errors[field.name] &amp;&amp; <p className="col-span-4 text-red-500 text-xs text-right">{errors[field.name]?.message?.toString()}</p>}
+                    {errors[field.name] && <p className="col-span-4 text-red-500 text-xs text-right">{errors[field.name]?.message?.toString()}</p>}
                 </div>
             ))}
           </div>
           <DialogFooter>
             <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting &amp;&amp; <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save
             </Button>
           </DialogFooter>

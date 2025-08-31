@@ -109,8 +109,8 @@ export const addTask = async (projectId: string, milestoneId: string, task: Omit
             id: uuidv4(),
             name: task.name,
             completed: false,
-            ...(task.description &amp;&amp; { description: task.description }),
-            ...(task.dueDate &amp;&amp; { dueDate: Timestamp.fromDate(task.dueDate as Date) })
+            ...(task.description && { description: task.description }),
+            ...(task.dueDate && { dueDate: Timestamp.fromDate(task.dueDate as Date) })
         }
 
         const newMilestones = projectData.milestones.map(m => {
