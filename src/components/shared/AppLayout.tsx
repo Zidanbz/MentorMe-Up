@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListTodo, ShieldAlert, Star } from 'lucide-react';
+import { ListTodo, ShieldAlert, Star, Bell } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -34,15 +34,25 @@ import { ChangePasswordForm } from '../auth/change-password-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { hasNewGrievances } from '@/services/grievanceService';
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  notification?: boolean;
+  allowedRoles?: string[];
+};
+
+
 type AppLayoutProps = {
   children: React.ReactNode;
 };
 
-const navItems = [
+const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
+  { href: '/reminders', label: 'Reminders', icon: Bell, allowedRoles: ['ceo@mentorme.com', 'coo@mentorme.com'] },
   { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert, notification: true },
   { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
@@ -53,6 +63,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
   const [showNotification, setShowNotification] = useState(false);
   const isCEO = user?.email === 'ceo@mentorme.com';
+  const userEmail = user?.email || '';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -97,7 +108,11 @@ export function AppLayout({ children }: AppLayoutProps) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              const isAllowed = !item.allowedRoles || item.allowedRoles.includes(userEmail);
+              if (!isAllowed) return null;
+
+              return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
@@ -114,7 +129,8 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ))}
+              )
+            })}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
