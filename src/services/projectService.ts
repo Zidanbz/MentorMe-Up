@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import type { Project, Milestone, Task, Reminder } from '@/types';
+import type { Project, Milestone, Task } from '@/types';
 import { 
     collection, 
     addDoc, 
@@ -18,7 +18,6 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 const projectsCollection = collection(db, 'projects');
-const remindersCollection = collection(db, 'reminders');
 
 // Helper to convert single level date properties to Firestore Timestamps
 const convertDatesToTimestamps = (data: any): any => {
@@ -170,24 +169,3 @@ export const deleteTask = async (projectId: string, milestoneId: string, taskId:
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
-
-// Reminder Functions
-export const getReminders = async (): Promise<Reminder[]> => {
-    const q = query(remindersCollection, orderBy('reminderDate', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Reminder));
-}
-
-export const addReminder = async (reminder: Omit<Reminder, 'id' | 'createdAt'>): Promise<void> => {
-    const newReminder = {
-        ...reminder,
-        reminderDate: Timestamp.fromDate(reminder.reminderDate as Date),
-        createdAt: serverTimestamp(),
-    }
-    await addDoc(remindersCollection, newReminder);
-}
-
-export const deleteReminder = async (id: string): Promise<void> => {
-    const docRef = doc(db, 'reminders', id);
-    await deleteDoc(docRef);
-}

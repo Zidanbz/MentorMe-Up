@@ -51,14 +51,6 @@ export type Project = {
   createdAt: Timestamp;
 };
 
-export type Reminder = {
-    id: string;
-    message: string;
-    targetRole: UserProfile['role'];
-    reminderDate: Timestamp | Date;
-    createdAt: Timestamp;
-}
-
 export type Grievance = {
   id: string;
   userId: string;
