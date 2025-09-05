@@ -44,9 +44,9 @@ export default function UserGuidePage() {
                       <li><strong>Pencarian:</strong> Gunakan kolom pencarian di bagian atas untuk memfilter dokumen berdasarkan nama.</li>
                       <li><strong>Penghapusan Massal:</strong> Centang kotak di samping dokumen untuk memilih beberapa file. Tombol "Delete" akan muncul untuk menghapus semua item yang dipilih sekaligus.</li>
                     </ul>
-                    <h4 className="font-semibold pt-2">Izin Peran:</h4>
+                    <h4 className="font-semibold pt-2">Izin Peran (Upload/Delete):</h4>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li><strong>CEO:</strong> Dapat mengelola (unggah/hapus) semua kategori.</li>
+                      <li><strong>CEO:</strong> Dapat mengelola semua kategori.</li>
                       <li><strong>CFO:</strong> Mengelola kategori 'Finance' dan 'Investor & Fundraising'.</li>
                       <li><strong>COO:</strong> Mengelola kategori 'Operations' dan 'Legal'.</li>
                       <li><strong>CTO:</strong> Mengelola kategori 'Product & Development'.</li>

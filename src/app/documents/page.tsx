@@ -171,10 +171,9 @@ export default function DocumentsPage() {
         return documents.filter(doc => {
             const matchesCategory = activeTab === 'all' || doc.category === activeTab;
             const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const userCanSee = userAllowedCategories.includes(doc.category);
-            return matchesCategory && matchesSearch && (userEmail === 'ceo@mentorme.com' || userCanSee);
+            return matchesCategory && matchesSearch;
         });
-    }, [documents, activeTab, searchTerm, userAllowedCategories, userEmail]);
+    }, [documents, activeTab, searchTerm]);
 
     const paginatedDocuments = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -204,7 +203,7 @@ export default function DocumentsPage() {
         <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Documents</h1>
-                <Button onClick={() => setIsUploadDialogOpen(true)} disabled={!canUpload}>
+                <Button onClick={() => setIsUploadDialogOpen(true)} disabled={!canUpload} title={!canUpload ? 'Your role cannot upload documents' : ''}>
                     <FileUp className="mr-2 h-4 w-4" />
                     Upload Document
                 </Button>
@@ -257,7 +256,6 @@ export default function DocumentsPage() {
             <TabsList className="flex-wrap h-auto">
                 <TabsTrigger value="all">All</TabsTrigger>
                 {allCategories.map(cat => (
-                    (userEmail === 'ceo@mentorme.com' || userAllowedCategories.includes(cat)) &&
                     <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
                 ))}
             </TabsList>
