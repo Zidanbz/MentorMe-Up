@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -17,13 +17,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import type { Project, Milestone, Task } from '@/types';
 import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
 
 // Schemas
 const projectSchema = z.object({ name: z.string().min(1, "Project name is required") });
@@ -42,20 +43,9 @@ export default function ProjectTaskPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const id = localStorage.getItem('workspaceId');
-    if (id) {
-        setWorkspaceId(id);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-        setLoading(false);
-    }
-  }, [toast]);
-
-
-  const fetchProjects = async (id: string) => {
+  const { userProfile, loading: authLoading } = useAuth();
+  
+  const fetchProjects = useCallback(async (id: string) => {
     try {
       setLoading(true);
       const fetchedProjects = await getProjects(id);
@@ -65,19 +55,21 @@ export default function ProjectTaskPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    if (workspaceId) {
-        fetchProjects(workspaceId);
+    if (userProfile?.workspaceId) {
+        fetchProjects(userProfile.workspaceId);
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [workspaceId]);
+  }, [userProfile, authLoading, fetchProjects]);
 
   const handleAddProject = async (data: z.infer<typeof projectSchema>) => {
-    if (!workspaceId) return false;
+    if (!userProfile?.workspaceId) return false;
     try {
-      await addProject(workspaceId, { name: data.name });
-      fetchProjects(workspaceId);
+      await addProject(userProfile.workspaceId, { name: data.name });
+      fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add project.' });
@@ -86,10 +78,10 @@ export default function ProjectTaskPage() {
   };
 
   const handleAddMilestone = async (projectId: string, data: z.infer<typeof milestoneSchema>) => {
-    if (!workspaceId) return false;
+    if (!userProfile?.workspaceId) return false;
     try {
-      await addMilestone(workspaceId, projectId, { name: data.name });
-      fetchProjects(workspaceId);
+      await addMilestone(userProfile.workspaceId, projectId, { name: data.name });
+      fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add milestone.' });
@@ -98,10 +90,10 @@ export default function ProjectTaskPage() {
   };
 
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
-    if (!workspaceId) return false;
+    if (!userProfile?.workspaceId) return false;
     try {
-      await addTask(workspaceId, projectId, milestoneId, { ...data });
-      fetchProjects(workspaceId);
+      await addTask(userProfile.workspaceId, projectId, milestoneId, { ...data });
+      fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add task.' });
@@ -110,21 +102,21 @@ export default function ProjectTaskPage() {
   };
 
   const handleUpdateTask = async (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     try {
-      await updateTask(workspaceId, projectId, milestoneId, taskId, data);
-      fetchProjects(workspaceId);
+      await updateTask(userProfile.workspaceId, projectId, milestoneId, taskId, data);
+      fetchProjects(userProfile.workspaceId);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task.' });
     }
   };
   
   const handleDeleteTask = async (projectId: string, milestoneId: string, taskId: string) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     setProcessingAction(`task-delete-${taskId}`);
     try {
-      await deleteTask(workspaceId, projectId, milestoneId, taskId);
-      fetchProjects(workspaceId);
+      await deleteTask(userProfile.workspaceId, projectId, milestoneId, taskId);
+      fetchProjects(userProfile.workspaceId);
       toast({ title: 'Success', description: 'Task deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
@@ -134,11 +126,11 @@ export default function ProjectTaskPage() {
   }
 
   const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     setProcessingAction(`milestone-delete-${milestoneId}`);
     try {
-      await deleteMilestone(workspaceId, projectId, milestoneId);
-      fetchProjects(workspaceId);
+      await deleteMilestone(userProfile.workspaceId, projectId, milestoneId);
+      fetchProjects(userProfile.workspaceId);
       toast({ title: 'Success', description: 'Milestone deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete milestone.' });
@@ -148,17 +140,27 @@ export default function ProjectTaskPage() {
   }
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     setProcessingAction(`project-delete-${projectId}`);
     try {
-      await deleteProject(workspaceId, projectId);
-      fetchProjects(workspaceId);
+      await deleteProject(userProfile.workspaceId, projectId);
+      fetchProjects(userProfile.workspaceId);
       toast({ title: 'Success', description: 'Project deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete project.' });
     } finally {
       setProcessingAction(null);
     }
+  }
+
+  if (authLoading) {
+    return (
+        <AppLayout>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        </AppLayout>
+    )
   }
 
   return (

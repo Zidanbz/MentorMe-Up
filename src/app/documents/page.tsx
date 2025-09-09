@@ -42,7 +42,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
   } from "@/components/ui/dropdown-menu";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -91,14 +91,13 @@ export default function DocumentsPage() {
     const [loading, setLoading] = useState(true);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, userProfile, loading: authLoading } = useAuth();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
     const itemsPerPage = 10;
 
 
@@ -106,18 +105,7 @@ export default function DocumentsPage() {
     const userAllowedCategories = rolePermissions[userEmail] || [];
     const canUpload = userAllowedCategories.length > 0;
 
-    useEffect(() => {
-        const id = localStorage.getItem('workspaceId');
-        if (id) {
-            setWorkspaceId(id);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-            setLoading(false);
-        }
-    }, [toast]);
-
-
-    const fetchDocuments = async (id: string) => {
+    const fetchDocuments = useCallback(async (id: string) => {
         try {
             setLoading(true);
             const data = await getDocuments(id);
@@ -127,13 +115,15 @@ export default function DocumentsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
-        if (workspaceId) {
-            fetchDocuments(workspaceId);
+        if (userProfile?.workspaceId) {
+            fetchDocuments(userProfile.workspaceId);
+        } else if (!authLoading) {
+            setLoading(false);
         }
-    }, [workspaceId]);
+    }, [userProfile, authLoading, fetchDocuments]);
     
     useEffect(() => {
         setCurrentPage(1);
@@ -141,11 +131,11 @@ export default function DocumentsPage() {
     }, [activeTab, searchTerm]);
 
     const handleAddDocument = async (data: DocumentFormData) => {
-        if (!workspaceId) return false;
+        if (!userProfile?.workspaceId) return false;
         try {
-            await addDocument(workspaceId, data.file[0], data.category);
+            await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
-            fetchDocuments(workspaceId);
+            fetchDocuments(userProfile.workspaceId);
             setIsUploadDialogOpen(false);
             return true;
         } catch (error) {
@@ -155,12 +145,12 @@ export default function DocumentsPage() {
     };
 
     const handleDeleteDocument = async (doc: Document) => {
-        if (!workspaceId) return;
+        if (!userProfile?.workspaceId) return;
         setDeletingId(doc.id);
         try {
-            await deleteDocument(workspaceId, doc);
+            await deleteDocument(userProfile.workspaceId, doc);
             toast({ title: 'Success', description: 'Document deleted successfully.' });
-            fetchDocuments(workspaceId);
+            fetchDocuments(userProfile.workspaceId);
         } catch (error) {
              toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete document.' });
         } finally {
@@ -169,14 +159,14 @@ export default function DocumentsPage() {
     };
 
     const handleBulkDelete = async () => {
-        if (!workspaceId) return;
+        if (!userProfile?.workspaceId) return;
         setIsBulkDeleting(true);
         try {
             const documentsToDelete = documents.filter(doc => selectedIds.includes(doc.id));
-            await deleteDocuments(workspaceId, documentsToDelete);
+            await deleteDocuments(userProfile.workspaceId, documentsToDelete);
             toast({ title: 'Success', description: `${selectedIds.length} documents deleted.` });
             setSelectedIds([]);
-            fetchDocuments(workspaceId);
+            fetchDocuments(userProfile.workspaceId);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete selected documents.' });
         } finally {
@@ -214,6 +204,16 @@ export default function DocumentsPage() {
     };
 
     const userEmailMemo = useMemo(() => user?.email, [user?.email]);
+    
+    if (authLoading) {
+        return (
+            <AppLayout>
+                <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout>

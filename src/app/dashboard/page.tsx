@@ -14,6 +14,7 @@ import { getDocuments } from '@/services/documentService';
 import { format, subMonths, formatDistanceToNow } from 'date-fns';
 import { id as IndonesianLocale } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const chartConfig = {
   income: {
@@ -40,21 +41,20 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState<CombinedActivity[]>([]);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
-    const id = localStorage.getItem('workspaceId');
-    if (id) {
-      setWorkspaceId(id);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-      setLoading(false);
+    if (!userProfile?.workspaceId) {
+        if (!userProfile && loading) {
+          // Still waiting for auth to resolve
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
+        }
+        return;
     }
-  }, [toast]);
 
-  useEffect(() => {
-    if (!workspaceId) return;
+    const workspaceId = userProfile.workspaceId;
 
     const fetchData = async () => {
       try {
@@ -96,12 +96,13 @@ export default function DashboardPage() {
 
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch dashboard data.' });
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [workspaceId]);
+  }, [userProfile, toast, loading]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {

@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Grievance, GrievanceClientData } from '@/types';
 import { getGrievances, addGrievance, markGrievancesAsSeen } from '@/services/grievanceService';
@@ -135,23 +135,12 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
 export default function GrievancesPage() {
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const isCEO = user?.email === 'ceo@mentorme.com';
 
-  useEffect(() => {
-    const id = localStorage.getItem('workspaceId');
-    if (id) {
-        setWorkspaceId(id);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-        setLoading(false);
-    }
-  }, [toast]);
-
-  const fetchGrievances = async () => {
-    if (!user?.uid || !user?.email || !workspaceId) {
+  const fetchGrievances = useCallback(async (workspaceId: string) => {
+    if (!user?.uid || !user?.email) {
         setLoading(false);
         return;
     }
@@ -167,20 +156,23 @@ export default function GrievancesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, user]);
 
   useEffect(() => {
-    if (user && user.uid && user.email && workspaceId) {
-      fetchGrievances();
-      if (isCEO) {
-        // Mark grievances as seen when the CEO opens the page
-        markGrievancesAsSeen(workspaceId);
-      }
+    if (userProfile?.workspaceId && user) {
+        const workspaceId = userProfile.workspaceId;
+        fetchGrievances(workspaceId);
+        if (isCEO) {
+            // Mark grievances as seen when the CEO opens the page
+            markGrievancesAsSeen(workspaceId);
+        }
+    } else if (!authLoading) {
+        setLoading(false);
     }
-  }, [user, isCEO, workspaceId]);
+  }, [user, userProfile, isCEO, authLoading, fetchGrievances]);
 
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
         <AppLayout>
             <div className="flex items-center justify-center h-full">
@@ -195,7 +187,7 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-           {!isCEO && <AddGrievanceDialog onGrievanceAdded={fetchGrievances} />}
+           {!isCEO && <AddGrievanceDialog onGrievanceAdded={() => userProfile?.workspaceId && fetchGrievances(userProfile.workspaceId)} />}
         </div>
         
         {grievances.length === 0 ? (

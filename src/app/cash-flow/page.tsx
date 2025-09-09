@@ -42,7 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { VoiceInput } from '@/components/voice-input';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -88,25 +88,12 @@ export default function CashFlowPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-
+  
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const isCFO = user?.email === 'cfo@mentorme.com';
   
-  useEffect(() => {
-    const id = localStorage.getItem('workspaceId');
-    if (id) {
-      setWorkspaceId(id);
-    } else {
-        // Handle case where workspaceId is not found, maybe redirect or show an error
-        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please select a workspace first.' });
-        setLoading(false);
-    }
-  }, [toast]);
-
-
-  const fetchTransactions = async (id: string) => {
+  const fetchTransactions = useCallback(async (id: string) => {
     try {
       setLoading(true);
       const data = await getTransactions(id);
@@ -116,19 +103,21 @@ export default function CashFlowPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    if (workspaceId) {
-        fetchTransactions(workspaceId);
+    if (userProfile?.workspaceId) {
+        fetchTransactions(userProfile.workspaceId);
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [workspaceId]);
+  }, [userProfile, authLoading, fetchTransactions]);
 
   const handleAddTransaction = async (data: TransactionFormData) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     try {
-      await addTransaction(workspaceId, data);
-      fetchTransactions(workspaceId);
+      await addTransaction(userProfile.workspaceId, data);
+      fetchTransactions(userProfile.workspaceId);
       setIsDialogOpen(false);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add transaction.' });
@@ -136,11 +125,11 @@ export default function CashFlowPage() {
   };
 
   const handleUpdateTransaction = async (data: TransactionFormData) => {
-    if (!editingTransaction?.id || !workspaceId) return;
+    if (!editingTransaction?.id || !userProfile?.workspaceId) return;
     try {
-      await updateTransaction(workspaceId, editingTransaction.id, data);
+      await updateTransaction(userProfile.workspaceId, editingTransaction.id, data);
       setEditingTransaction(null);
-      fetchTransactions(workspaceId);
+      fetchTransactions(userProfile.workspaceId);
       setIsDialogOpen(false);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to update transaction.' });
@@ -148,11 +137,11 @@ export default function CashFlowPage() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    if (!workspaceId) return;
+    if (!userProfile?.workspaceId) return;
     setDeletingId(id);
     try {
-        await deleteTransaction(workspaceId, id);
-        fetchTransactions(workspaceId);
+        await deleteTransaction(userProfile.workspaceId, id);
+        fetchTransactions(userProfile.workspaceId);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete transaction.' });
     } finally {
@@ -176,6 +165,16 @@ export default function CashFlowPage() {
     }
     setEditingTransaction(null);
     setIsDialogOpen(true);
+  }
+
+   if (authLoading) {
+    return (
+        <AppLayout>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        </AppLayout>
+    )
   }
 
   return (
