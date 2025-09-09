@@ -30,47 +30,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
         setLoading(true);
         const activeWorkspaceId = localStorage.getItem('workspaceId');
-        
-        let profile = await getUserProfile(user.uid);
+        const workspaceName = localStorage.getItem('workspaceName') || 'selected';
 
-        if (!profile) {
-          // This is a new user signing in for the first time.
-          if (activeWorkspaceId) {
-            try {
-              profile = await createUserProfile(user, activeWorkspaceId);
-            } catch (error) {
-               console.error("Failed to create user profile:", error);
-               await signOut(auth); // Sign out on profile creation failure
-               return; // Stop execution
-            }
-          } else {
-             // This can happen if a user lands on a protected page without going through login.
-             // Force them back to the selection page.
-             await signOut(auth);
-             router.push('/');
-             return; // Stop execution
-          }
+        // This can happen if a user lands on a protected page without going through the selection screen
+        if (!activeWorkspaceId) {
+            await signOut(auth);
+            router.push('/');
+            setLoading(false);
+            return;
         }
-        
-        // At this point, the user has a profile. Now, validate their workspace.
-        if (profile.workspaceId !== activeWorkspaceId) {
-          toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: `You are not a member of the ${localStorage.getItem('workspaceName') || 'selected'} workspace.`,
-          });
-          await signOut(auth);
-          setUser(null);
-          setUserProfile(null);
-        } else {
-          // Success! User is authenticated and in the correct workspace.
-          setUser(user);
-          setUserProfile(profile);
-          router.push('/dashboard');
+
+        try {
+            let profile = await getUserProfile(firebaseUser.uid);
+
+            if (!profile) {
+              // This is a new user signing in for the first time. Create a profile for them.
+              console.log(`No profile found for UID ${firebaseUser.uid}. Creating new profile in workspace: ${activeWorkspaceId}`);
+              profile = await createUserProfile(firebaseUser, activeWorkspaceId);
+            }
+
+            // At this point, the user MUST have a profile. Now, validate their workspace.
+            if (profile.workspaceId !== activeWorkspaceId) {
+              toast({
+                variant: 'destructive',
+                title: 'Access Denied',
+                description: `Your account is not a member of the "${workspaceName}" workspace.`,
+              });
+              await signOut(auth);
+              // Clear state
+              setUser(null);
+              setUserProfile(null);
+            } else {
+              // Success! User is authenticated and belongs to the correct workspace.
+              setUser(firebaseUser);
+              setUserProfile(profile);
+              router.push('/dashboard');
+            }
+        } catch (error) {
+            console.error("Authentication or profile processing error:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Error',
+                description: 'An error occurred during login. Please try again.',
+            });
+            await signOut(auth);
+            setUser(null);
+            setUserProfile(null);
         }
 
       } else {
