@@ -17,14 +17,11 @@ import { useToast } from '@/hooks/use-toast';
 
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Invalid email address.' }).refine(
-    (email) => email.endsWith('@mentorme.com'),
-    { message: 'Only @mentorme.com domain is allowed.' }
-  ),
+  email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-export function LoginForm() {
+export function LoginForm({ placeholderEmail = 'name@mentorme.com' }: { placeholderEmail?: string }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,7 +61,7 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="name@mentorme.com" {...field} disabled={loading} />
+                <Input placeholder={placeholderEmail} {...field} disabled={loading} />
               </FormControl>
               <FormMessage />
             </FormItem>

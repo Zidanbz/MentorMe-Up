@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListTodo, ShieldAlert, Star } from 'lucide-react';
+import { ListTodo, ShieldAlert, Star, Home as HomeIcon } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -61,6 +61,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [showNotification, setShowNotification] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('mentorme Up');
+  const [workspaceIcon, setWorkspaceIcon] = useState(<Layers3 className="h-6 w-6" />);
+
   const isCEO = user?.email === 'ceo@mentorme.com';
   const userEmail = user?.email || '';
 
@@ -70,6 +73,17 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, [user, loading, router]);
   
+  useEffect(() => {
+    const name = localStorage.getItem('workspaceName') || 'mentorme Up';
+    const iconName = localStorage.getItem('workspaceIcon') || 'Layers3';
+    setWorkspaceName(name);
+    if (iconName === 'HomeIcon') {
+      setWorkspaceIcon(<HomeIcon className="h-6 w-6" />);
+    } else {
+      setWorkspaceIcon(<Layers3 className="h-6 w-6" />);
+    }
+  }, []);
+
   useEffect(() => {
     if (isCEO && pathname !== '/grievances') {
         const checkGrievances = async () => {
@@ -100,9 +114,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarHeader>
           <div className="flex items-center gap-3 p-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <Layers3 className="h-6 w-6" />
+              {workspaceIcon}
             </div>
-            <span className="text-lg font-semibold">mentorme Up</span>
+            <span className="text-lg font-semibold">{workspaceName}</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
