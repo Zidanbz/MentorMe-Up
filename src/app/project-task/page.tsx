@@ -45,10 +45,10 @@ export default function ProjectTaskPage() {
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const { userProfile, loading: authLoading } = useAuth();
   
-  const fetchProjects = useCallback(async (id: string) => {
+  const fetchProjects = useCallback(async (workspaceId: string) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const fetchedProjects = await getProjects(id);
+      const fetchedProjects = await getProjects(workspaceId);
       setProjects(fetchedProjects);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch projects.' });

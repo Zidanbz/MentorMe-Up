@@ -8,7 +8,7 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Transaction, Document } from '@/types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getTransactions } from '@/services/transactionService';
 import { getDocuments } from '@/services/documentService';
 import { format, subMonths, formatDistanceToNow } from 'date-fns';
@@ -42,67 +42,60 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState<CombinedActivity[]>([]);
   const { toast } = useToast();
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
+
+  const fetchData = useCallback(async (workspaceId: string) => {
+    setLoading(true);
+    try {
+      const [transactionsData, documentsData] = await Promise.all([
+        getTransactions(workspaceId),
+        getDocuments(workspaceId),
+      ]);
+      setTransactions(transactionsData);
+      setDocuments(documentsData);
+
+      const combined: CombinedActivity[] = [];
+
+      transactionsData.forEach(t => {
+          combined.push({
+              id: `t-${t.id}`,
+              type: 'transaction',
+              user: 'Finance Team',
+              avatar: 'https://placehold.co/40x40.png',
+              action: `${t.type === 'Income' ? 'Added an income' : 'Added an expense'} of ${formatCurrency(t.amount)} for ${t.description}`,
+              timestamp: t.date.toDate()
+          });
+      });
+
+      documentsData.forEach(d => {
+          combined.push({
+              id: `d-${d.id}`,
+              type: 'document',
+              user: 'Admin',
+              avatar: 'https://placehold.co/40x40.png',
+              action: `Uploaded "${d.name}" to ${d.category}`,
+              timestamp: d.createdAt.toDate()
+          });
+      });
+      
+      combined.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      setRecentActivities(combined.slice(0, 5));
+
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch dashboard data.' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    if (!userProfile?.workspaceId) {
-        if (!userProfile && loading) {
-          // Still waiting for auth to resolve
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-        }
-        return;
+    if (userProfile?.workspaceId) {
+      fetchData(userProfile.workspaceId);
+    } else if (!authLoading) {
+      setLoading(false);
     }
-
-    const workspaceId = userProfile.workspaceId;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [transactionsData, documentsData] = await Promise.all([
-          getTransactions(workspaceId),
-          getDocuments(workspaceId),
-        ]);
-        setTransactions(transactionsData);
-        setDocuments(documentsData);
-
-        const combined: CombinedActivity[] = [];
-
-        transactionsData.forEach(t => {
-            combined.push({
-                id: `t-${t.id}`,
-                type: 'transaction',
-                user: 'Finance Team',
-                avatar: 'https://placehold.co/40x40.png',
-                action: `${t.type === 'Income' ? 'Added an income' : 'Added an expense'} of ${formatCurrency(t.amount)} for ${t.description}`,
-                timestamp: t.date.toDate()
-            });
-        });
-
-        documentsData.forEach(d => {
-            combined.push({
-                id: `d-${d.id}`,
-                type: 'document',
-                user: 'Admin',
-                avatar: 'https://placehold.co/40x40.png',
-                action: `Uploaded "${d.name}" to ${d.category}`,
-                timestamp: d.createdAt.toDate()
-            });
-        });
-        
-        combined.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-        setRecentActivities(combined.slice(0, 5));
-
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch dashboard data.' });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [userProfile, toast, loading]);
+  }, [userProfile, authLoading, fetchData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -146,7 +139,7 @@ export default function DashboardPage() {
 
   const chartData = processChartData();
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
         <AppLayout>
             <div className="flex items-center justify-center h-full">

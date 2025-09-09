@@ -56,7 +56,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -76,13 +75,14 @@ type DocumentFormData = z.infer<typeof documentSchema>;
 const allCategories: Document['category'][] = ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template'];
 
 const rolePermissions: Record<string, Document['category'][]> = {
-    'ceo@mentorme.com': ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template'],
-    'cfo@mentorme.com': ['Finance', 'Investor & Fundraising'],
-    'coo@mentorme.com': ['Operations', 'Legal'],
-    'cto@mentorme.com': ['Product & Development'],
-    'cdo@mentorme.com': ['Research & Insights'],
-    'cmo@mentorme.com': ['Marketing & Sales'],
-    'chro@mentorme.com': ['HR'],
+    'CEO': ['Legal', 'Finance', 'Operations', 'Reports', 'HR', 'Product & Development', 'Marketing & Sales', 'Investor & Fundraising', 'Research & Insights', 'Template'],
+    'CFO': ['Finance', 'Investor & Fundraising'],
+    'COO': ['Operations', 'Legal'],
+    'CTO': ['Product & Development'],
+    'CDO': ['Research & Insights'],
+    'CMO': ['Marketing & Sales'],
+    'CHRO': ['HR'],
+    'Member': [],
 };
 
 
@@ -100,15 +100,14 @@ export default function DocumentsPage() {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const itemsPerPage = 10;
 
-
-    const userEmail = user?.email || '';
-    const userAllowedCategories = rolePermissions[userEmail] || [];
+    const userRole = userProfile?.role || 'Member';
+    const userAllowedCategories = rolePermissions[userRole] || [];
     const canUpload = userAllowedCategories.length > 0;
 
-    const fetchDocuments = useCallback(async (id: string) => {
+    const fetchDocuments = useCallback(async (workspaceId: string) => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const data = await getDocuments(id);
+            const data = await getDocuments(workspaceId);
             setDocuments(data);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch documents.' });
@@ -202,8 +201,6 @@ export default function DocumentsPage() {
             setSelectedIds(prev => prev.filter(item => item !== id));
         }
     };
-
-    const userEmailMemo = useMemo(() => user?.email, [user?.email]);
     
     if (authLoading) {
         return (
@@ -282,7 +279,7 @@ export default function DocumentsPage() {
                     documents={paginatedDocuments} 
                     onDelete={handleDeleteDocument} 
                     loading={loading}
-                    userEmail={userEmailMemo || ''}
+                    userRole={userRole}
                     allowedCategories={userAllowedCategories} 
                     deletingId={deletingId}
                     selectedIds={selectedIds}
@@ -378,11 +375,11 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     );
 }
 
-function DocumentTable({ documents, onDelete, loading, userEmail, allowedCategories, deletingId, selectedIds, onSelectAll, onSelectOne }: { 
+function DocumentTable({ documents, onDelete, loading, userRole, allowedCategories, deletingId, selectedIds, onSelectAll, onSelectOne }: { 
     documents: Document[], 
     onDelete: (doc: Document) => void, 
     loading: boolean, 
-    userEmail: string,
+    userRole: string,
     allowedCategories: Document['category'][], 
     deletingId: string | null,
     selectedIds: string[],
@@ -423,7 +420,7 @@ function DocumentTable({ documents, onDelete, loading, userEmail, allowedCategor
                         </TableRow>
                     ) : (
                         documents.map((doc) => {
-                            const canDelete = allowedCategories.includes(doc.category) || userEmail === 'ceo@mentorme.com';
+                            const canDelete = allowedCategories.includes(doc.category) || userRole === 'CEO';
                             return (
                                 <TableRow key={doc.id} data-state={selectedIds.includes(doc.id) && "selected"}>
                                     <TableCell>

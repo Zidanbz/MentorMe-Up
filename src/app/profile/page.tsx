@@ -24,54 +24,28 @@ import { ChangePasswordForm } from '@/components/auth/change-password-form';
 import { KeyRound, Mail, User as UserIcon, Building2, Phone, Pencil } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { getUserProfile, updateUserProfile } from '@/services/userService';
-import type { UserProfile } from '@/types';
+import { updateUserProfile } from '@/services/userService';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-
-const roleMappings: { [key: string]: string } = {
-  'ceo@mentorme.com': 'Chief Executive Officer',
-  'cfo@mentorme.com': 'Chief Financial Officer',
-  'coo@mentorme.com': 'Chief Operating Officer',
-  'cto@mentorme.com': 'Chief Technology Officer',
-  'cdo@mentorme.com': 'Chief Design Officer',
-  'cmo@mentorme.com': 'Chief Marketing Officer',
-  'chro@mentorme.com': 'Chief Human Resources Officer',
-  'member@mentorme.com': 'Member',
-};
-
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const { user, userProfile, loading: authLoading } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isEditPhoneOpen, setIsEditPhoneOpen] = useState(false);
+  
+  // Use a local state for the phone number to allow instant UI updates
+  const [displayPhone, setDisplayPhone] = useState(userProfile?.phone || '');
 
   useEffect(() => {
-    async function fetchProfile() {
-      if (user) {
-        setProfileLoading(true);
-        try {
-          const userProfile = await getUserProfile(user.uid);
-          setProfile(userProfile);
-        } catch (error) {
-          console.error("Failed to fetch user profile", error);
-        } finally {
-          setProfileLoading(false);
-        }
-      }
+    if (userProfile) {
+        setDisplayPhone(userProfile.phone || '');
     }
-    fetchProfile();
-  }, [user]);
+  }, [userProfile]);
 
-  const userRole = user?.email ? roleMappings[user.email] || 'Member' : '...';
   const userInitial = user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
 
-  const loading = authLoading || profileLoading;
-
-  if (loading) {
+  if (authLoading) {
     return (
         <AppLayout>
             <div className="flex items-center justify-center h-full">
@@ -82,9 +56,8 @@ export default function ProfilePage() {
   }
   
   const handlePhoneUpdate = (newPhone: string) => {
-    if (profile) {
-        setProfile({...profile, phone: newPhone});
-    }
+    // Optimistically update the UI
+    setDisplayPhone(newPhone);
   }
 
   return (
@@ -96,8 +69,8 @@ export default function ProfilePage() {
               <AvatarImage src={user?.photoURL ?? ''} alt={user?.displayName ?? ''} />
               <AvatarFallback className="text-4xl">{userInitial}</AvatarFallback>
             </Avatar>
-            <CardTitle className="text-2xl">{profile?.displayName || 'User'}</CardTitle>
-            <CardDescription>{profile?.email}</CardDescription>
+            <CardTitle className="text-2xl">{userProfile?.displayName || 'User'}</CardTitle>
+            <CardDescription>{userProfile?.email}</CardDescription>
           </CardHeader>
           <CardContent>
             <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
@@ -127,7 +100,7 @@ export default function ProfilePage() {
                         </Button>
                     </DialogTrigger>
                     <EditPhoneDialog 
-                        currentPhone={profile?.phone}
+                        currentPhone={displayPhone}
                         onPhoneUpdate={handlePhoneUpdate}
                         setDialogOpen={setIsEditPhoneOpen}
                     />
@@ -140,28 +113,28 @@ export default function ProfilePage() {
               <UserIcon className="h-5 w-5 mr-4 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Full Name</p>
-                <p className="font-medium">{profile?.displayName || 'Not Set'}</p>
+                <p className="font-medium">{userProfile?.displayName || 'Not Set'}</p>
               </div>
             </div>
             <div className="flex items-center">
               <Mail className="h-5 w-5 mr-4 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Email Address</p>
-                <p className="font-medium">{profile?.email}</p>
+                <p className="font-medium">{userProfile?.email}</p>
               </div>
             </div>
              <div className="flex items-center">
                 <Phone className="h-5 w-5 mr-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Phone Number</p>
-                  <p className="font-medium">{profile?.phone || 'Not Set'}</p>
+                  <p className="font-medium">{displayPhone || 'Not Set'}</p>
                 </div>
               </div>
             <div className="flex items-center">
               <Building2 className="h-5 w-5 mr-4 text-muted-foreground" />
               <div>
                 <p className="text-sm text-muted-foreground">Role</p>
-                <p className="font-medium">{userRole}</p>
+                <p className="font-medium">{userProfile?.role || 'Member'}</p>
               </div>
             </div>
           </CardContent>

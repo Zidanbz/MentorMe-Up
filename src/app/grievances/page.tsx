@@ -41,7 +41,7 @@ const grievanceSchema = z.object({
 
 type GrievanceFormData = z.infer<typeof grievanceSchema>;
 
-function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void }) {
+function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: string, onGrievanceAdded: () => void }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,9 +50,8 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
   });
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
-    const workspaceId = localStorage.getItem('workspaceId');
-    if (!user || !user.email || !workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in and in a workspace to submit a grievance.' });
+    if (!user || !user.email) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to submit a grievance.' });
       return;
     }
     try {
@@ -137,7 +136,7 @@ export default function GrievancesPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user, userProfile, loading: authLoading } = useAuth();
-  const isCEO = user?.email === 'ceo@mentorme.com';
+  const isCEO = userProfile?.role === 'CEO';
 
   const fetchGrievances = useCallback(async (workspaceId: string) => {
     if (!user?.uid || !user?.email) {
@@ -145,10 +144,9 @@ export default function GrievancesPage() {
         return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await getGrievances(workspaceId, { userId: user.uid, userEmail: user.email });
-      // Client-side sorting to ensure order
+      const data = await getGrievances(workspaceId, { userId: user.uid, userEmail: user.email, userRole: userProfile?.role || 'Member' });
       data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setGrievances(data);
     } catch (error) {
@@ -156,14 +154,13 @@ export default function GrievancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, user]);
+  }, [toast, user, userProfile?.role]);
 
   useEffect(() => {
     if (userProfile?.workspaceId && user) {
         const workspaceId = userProfile.workspaceId;
         fetchGrievances(workspaceId);
         if (isCEO) {
-            // Mark grievances as seen when the CEO opens the page
             markGrievancesAsSeen(workspaceId);
         }
     } else if (!authLoading) {
@@ -172,7 +169,7 @@ export default function GrievancesPage() {
   }, [user, userProfile, isCEO, authLoading, fetchGrievances]);
 
 
-  if (loading || authLoading) {
+  if (authLoading) {
     return (
         <AppLayout>
             <div className="flex items-center justify-center h-full">
@@ -187,10 +184,19 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-           {!isCEO && <AddGrievanceDialog onGrievanceAdded={() => userProfile?.workspaceId && fetchGrievances(userProfile.workspaceId)} />}
+           {!isCEO && userProfile?.workspaceId && 
+             <AddGrievanceDialog 
+                workspaceId={userProfile.workspaceId}
+                onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)} 
+             />
+           }
         </div>
         
-        {grievances.length === 0 ? (
+        {loading ? (
+           <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        ) : grievances.length === 0 ? (
             <div className="text-center py-12">
                 <p className="text-muted-foreground mt-2">
                     {isCEO ? "Belum ada pengaduan yang diajukan oleh anggota tim." : "Anda belum mengajukan pengaduan."}

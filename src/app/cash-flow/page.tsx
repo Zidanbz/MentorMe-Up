@@ -62,7 +62,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transactionService';
 import { useAuth } from '@/hooks/useAuth';
@@ -91,12 +90,12 @@ export default function CashFlowPage() {
   
   const { toast } = useToast();
   const { user, userProfile, loading: authLoading } = useAuth();
-  const isCFO = user?.email === 'cfo@mentorme.com';
+  const isCFO = user?.email === 'cfo@mentorme.com' || user?.email === 'cfo@howe.com';
   
-  const fetchTransactions = useCallback(async (id: string) => {
+  const fetchTransactions = useCallback(async (workspaceId: string) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await getTransactions(id);
+      const data = await getTransactions(workspaceId);
       setTransactions(data);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch transactions.' });
@@ -109,6 +108,8 @@ export default function CashFlowPage() {
     if (userProfile?.workspaceId) {
         fetchTransactions(userProfile.workspaceId);
     } else if (!authLoading) {
+      // If auth is done loading and there's still no workspaceId, it means something is wrong.
+      // We can stop loading, and the UI will show an appropriate message.
       setLoading(false);
     }
   }, [userProfile, authLoading, fetchTransactions]);

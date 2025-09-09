@@ -1,7 +1,7 @@
 'use server';
 
 import { db, storage } from '@/lib/firebase';
-import type { Grievance, GrievanceClientData } from '@/types';
+import type { Grievance, GrievanceClientData, UserProfile } from '@/types';
 import {
   collection,
   addDoc,
@@ -18,7 +18,13 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 const getGrievanceCollection = (workspaceId: string) =>
     collection(db, 'workspaces', workspaceId, 'grievances');
 
-export const getGrievances = async (workspaceId: string, user: { userId: string, userEmail: string }): Promise<Grievance[]> => {
+type GetGrievancesParams = {
+    userId: string;
+    userEmail: string;
+    userRole: UserProfile['role'];
+}
+
+export const getGrievances = async (workspaceId: string, user: GetGrievancesParams): Promise<Grievance[]> => {
   if (!user || !user.userId || !user.userEmail) {
     throw new Error('User authentication details are incomplete.');
   }
@@ -26,7 +32,7 @@ export const getGrievances = async (workspaceId: string, user: { userId: string,
   const grievanceCollection = getGrievanceCollection(workspaceId);
 
   let q;
-  if (user.userEmail === 'ceo@mentorme.com') {
+  if (user.userRole === 'CEO') {
     // CEO sees all grievances, sorted by most recent
     q = query(grievanceCollection, orderBy('createdAt', 'desc'));
   } else {
@@ -80,7 +86,7 @@ export const addGrievance = async (
 
   const newGrievance: Omit<Grievance, 'id'> = {
     userId: user.userId,
-    userEmail: user.userEmail,
+    userEmail: user.email,
     subject: data.subject,
     description: data.description,
     createdAt: Timestamp.now(),
@@ -91,7 +97,7 @@ export const addGrievance = async (
   };
 
   const grievanceCollection = getGrievanceCollection(workspaceId);
-  await addDoc(grievanceCollection, newGrievance);
+await addDoc(grievanceCollection, newGrievance);
 };
 
 
