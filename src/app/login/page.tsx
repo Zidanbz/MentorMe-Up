@@ -13,6 +13,7 @@ function LoginPageContent() {
   const [title, setTitle] = useState('mentorme Up');
   const [icon, setIcon] = useState(<Layers3 className="h-8 w-8" />);
   const [placeholderEmail, setPlaceholderEmail] = useState('name@mentorme.com');
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
     const workspace = searchParams.get('workspace');
@@ -20,12 +21,16 @@ function LoginPageContent() {
       setTitle('Home Workers Up');
       setIcon(<HomeIcon className="h-8 w-8" />);
       setPlaceholderEmail('name@example.com');
+      setWorkspaceId('homeworkers');
+      localStorage.setItem('workspaceId', 'homeworkers');
       localStorage.setItem('workspaceName', 'Home Workers Up');
       localStorage.setItem('workspaceIcon', 'HomeIcon');
     } else {
       setTitle('mentorme Up');
       setIcon(<Layers3 className="h-8 w-8" />);
       setPlaceholderEmail('name@mentorme.com');
+      setWorkspaceId('mentorme');
+      localStorage.setItem('workspaceId', 'mentorme');
       localStorage.setItem('workspaceName', 'mentorme Up');
       localStorage.setItem('workspaceIcon', 'Layers3');
     }
@@ -43,7 +48,7 @@ function LoginPageContent() {
             <CardDescription>Welcome back! Please sign in to continue.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm placeholderEmail={placeholderEmail} />
+            <LoginForm placeholderEmail={placeholderEmail} workspaceId={workspaceId} />
           </CardContent>
         </Card>
       </div>

@@ -3,18 +3,20 @@ import type { Document } from '@/types';
 import { collection, addDoc, getDocs, doc, deleteDoc, Timestamp, query, orderBy, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-const documentsCollection = collection(db, 'documents');
+const getDocumentsCollection = (workspaceId: string) => 
+    collection(db, 'workspaces', workspaceId, 'documents');
 
-export const getDocuments = async (): Promise<Document[]> => {
+export const getDocuments = async (workspaceId: string): Promise<Document[]> => {
+    const documentsCollection = getDocumentsCollection(workspaceId);
     const q = query(documentsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
 };
 
-export const addDocument = async (file: File, category: Document['category']): Promise<Document> => {
+export const addDocument = async (workspaceId: string, file: File, category: Document['category']): Promise<Document> => {
     if (!file) throw new Error("File is required.");
     
-    const storagePath = `documents/${Date.now()}_${file.name}`;
+    const storagePath = `${workspaceId}/documents/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, storagePath);
     
     await uploadBytes(storageRef, file);
@@ -38,26 +40,29 @@ export const addDocument = async (file: File, category: Document['category']): P
         storagePath: storagePath,
     };
 
+    const documentsCollection = getDocumentsCollection(workspaceId);
     const docRef = await addDoc(documentsCollection, docData);
 
     return { ...docData, id: docRef.id };
 };
 
-export const deleteDocument = async (document: Document): Promise<void> => {
-    const docRef = doc(db, 'documents', document.id);
+export const deleteDocument = async (workspaceId: string, document: Document): Promise<void> => {
+    const docRef = doc(db, 'workspaces', workspaceId, 'documents', document.id);
     await deleteDoc(docRef);
 
     const storageRef = ref(storage, document.storagePath);
     await deleteObject(storageRef);
 };
 
-export const deleteDocuments = async (documents: Document[]): Promise<void> => {
+export const deleteDocuments = async (workspaceId: string, documents: Document[]): Promise<void> => {
     if (documents.length === 0) return;
+
+    const documentsCollection = getDocumentsCollection(workspaceId);
 
     // Delete documents from Firestore in a batch
     const batch = writeBatch(db);
     documents.forEach(document => {
-        const docRef = doc(db, 'documents', document.id);
+        const docRef = doc(documentsCollection, document.id);
         batch.delete(docRef);
     });
     await batch.commit();

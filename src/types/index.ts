@@ -82,4 +82,5 @@ export type UserProfile = {
   photoURL?: string;
   role: 'CEO' | 'CFO' | 'COO' | 'CTO' | 'CMO' | 'CHRO' | 'CDO' | 'Member';
   phone?: string;
+  workspaceId: string;
 }

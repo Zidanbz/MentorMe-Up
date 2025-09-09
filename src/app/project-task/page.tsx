@@ -42,11 +42,23 @@ export default function ProjectTaskPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  const fetchProjects = async () => {
+  useEffect(() => {
+    const id = localStorage.getItem('workspaceId');
+    if (id) {
+        setWorkspaceId(id);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
+        setLoading(false);
+    }
+  }, [toast]);
+
+
+  const fetchProjects = async (id: string) => {
     try {
       setLoading(true);
-      const fetchedProjects = await getProjects();
+      const fetchedProjects = await getProjects(id);
       setProjects(fetchedProjects);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch projects.' });
@@ -56,13 +68,16 @@ export default function ProjectTaskPage() {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (workspaceId) {
+        fetchProjects(workspaceId);
+    }
+  }, [workspaceId]);
 
   const handleAddProject = async (data: z.infer<typeof projectSchema>) => {
+    if (!workspaceId) return false;
     try {
-      await addProject({ name: data.name });
-      fetchProjects();
+      await addProject(workspaceId, { name: data.name });
+      fetchProjects(workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add project.' });
@@ -71,9 +86,10 @@ export default function ProjectTaskPage() {
   };
 
   const handleAddMilestone = async (projectId: string, data: z.infer<typeof milestoneSchema>) => {
+    if (!workspaceId) return false;
     try {
-      await addMilestone(projectId, { name: data.name });
-      fetchProjects();
+      await addMilestone(workspaceId, projectId, { name: data.name });
+      fetchProjects(workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add milestone.' });
@@ -82,9 +98,10 @@ export default function ProjectTaskPage() {
   };
 
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
+    if (!workspaceId) return false;
     try {
-      await addTask(projectId, milestoneId, { ...data });
-      fetchProjects();
+      await addTask(workspaceId, projectId, milestoneId, { ...data });
+      fetchProjects(workspaceId);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add task.' });
@@ -93,19 +110,21 @@ export default function ProjectTaskPage() {
   };
 
   const handleUpdateTask = async (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => {
+    if (!workspaceId) return;
     try {
-      await updateTask(projectId, milestoneId, taskId, data);
-      fetchProjects();
+      await updateTask(workspaceId, projectId, milestoneId, taskId, data);
+      fetchProjects(workspaceId);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task.' });
     }
   };
   
   const handleDeleteTask = async (projectId: string, milestoneId: string, taskId: string) => {
+    if (!workspaceId) return;
     setProcessingAction(`task-delete-${taskId}`);
     try {
-      await deleteTask(projectId, milestoneId, taskId);
-      fetchProjects();
+      await deleteTask(workspaceId, projectId, milestoneId, taskId);
+      fetchProjects(workspaceId);
       toast({ title: 'Success', description: 'Task deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
@@ -115,10 +134,11 @@ export default function ProjectTaskPage() {
   }
 
   const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
+    if (!workspaceId) return;
     setProcessingAction(`milestone-delete-${milestoneId}`);
     try {
-      await deleteMilestone(projectId, milestoneId);
-      fetchProjects();
+      await deleteMilestone(workspaceId, projectId, milestoneId);
+      fetchProjects(workspaceId);
       toast({ title: 'Success', description: 'Milestone deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete milestone.' });
@@ -128,10 +148,11 @@ export default function ProjectTaskPage() {
   }
 
   const handleDeleteProject = async (projectId: string) => {
+    if (!workspaceId) return;
     setProcessingAction(`project-delete-${projectId}`);
     try {
-      await deleteProject(projectId);
-      fetchProjects();
+      await deleteProject(workspaceId, projectId);
+      fetchProjects(workspaceId);
       toast({ title: 'Success', description: 'Project deleted successfully.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete project.' });

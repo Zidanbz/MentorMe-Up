@@ -13,6 +13,7 @@ import { getTransactions } from '@/services/transactionService';
 import { getDocuments } from '@/services/documentService';
 import { format, subMonths, formatDistanceToNow } from 'date-fns';
 import { id as IndonesianLocale } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 const chartConfig = {
   income: {
@@ -39,14 +40,28 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState<CombinedActivity[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
+    const id = localStorage.getItem('workspaceId');
+    if (id) {
+      setWorkspaceId(id);
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
         const [transactionsData, documentsData] = await Promise.all([
-          getTransactions(),
-          getDocuments(),
+          getTransactions(workspaceId),
+          getDocuments(workspaceId),
         ]);
         setTransactions(transactionsData);
         setDocuments(documentsData);
@@ -86,7 +101,7 @@ export default function DashboardPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [workspaceId]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {

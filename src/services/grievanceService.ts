@@ -15,12 +15,15 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const grievanceCollection = collection(db, 'grievances');
+const getGrievanceCollection = (workspaceId: string) =>
+    collection(db, 'workspaces', workspaceId, 'grievances');
 
-export const getGrievances = async (user: { userId: string, userEmail: string }): Promise<Grievance[]> => {
+export const getGrievances = async (workspaceId: string, user: { userId: string, userEmail: string }): Promise<Grievance[]> => {
   if (!user || !user.userId || !user.userEmail) {
     throw new Error('User authentication details are incomplete.');
   }
+  
+  const grievanceCollection = getGrievanceCollection(workspaceId);
 
   let q;
   if (user.userEmail === 'ceo@mentorme.com') {
@@ -49,6 +52,7 @@ export const getGrievances = async (user: { userId: string, userEmail: string })
 };
 
 export const addGrievance = async (
+  workspaceId: string,
   data: GrievanceClientData,
   user: { userId: string, userEmail: string }
 ): Promise<void> => {
@@ -62,7 +66,7 @@ export const addGrievance = async (
   if (data.file && data.file.buffer) {
     try {
       const fileBuffer = Buffer.from(data.file.buffer, 'base64');
-      const storagePath = `grievances/${user.userId}/${Date.now()}_${data.file.name}`;
+      const storagePath = `${workspaceId}/grievances/${user.userId}/${Date.now()}_${data.file.name}`;
       const storageRef = ref(storage, storagePath);
 
       await uploadBytes(storageRef, fileBuffer, { contentType: data.file.type });
@@ -86,11 +90,13 @@ export const addGrievance = async (
     ...(filePath && { filePath }),
   };
 
+  const grievanceCollection = getGrievanceCollection(workspaceId);
   await addDoc(grievanceCollection, newGrievance);
 };
 
 
-export const hasNewGrievances = async (): Promise<boolean> => {
+export const hasNewGrievances = async (workspaceId: string): Promise<boolean> => {
+    const grievanceCollection = getGrievanceCollection(workspaceId);
     const q = query(
         grievanceCollection, 
         where('seenByCEO', '==', false),
@@ -100,7 +106,8 @@ export const hasNewGrievances = async (): Promise<boolean> => {
     return !snapshot.empty;
 };
 
-export const markGrievancesAsSeen = async (): Promise<void> => {
+export const markGrievancesAsSeen = async (workspaceId: string): Promise<void> => {
+    const grievanceCollection = getGrievanceCollection(workspaceId);
     const q = query(grievanceCollection, where('seenByCEO', '==', false));
     const snapshot = await getDocs(q);
 

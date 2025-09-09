@@ -63,20 +63,18 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [showNotification, setShowNotification] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('mentorme Up');
   const [workspaceIcon, setWorkspaceIcon] = useState(<Layers3 className="h-6 w-6" />);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const isCEO = user?.email === 'ceo@mentorme.com';
   const userEmail = user?.email || '';
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
-    }
-  }, [user, loading, router]);
   
   useEffect(() => {
     const name = localStorage.getItem('workspaceName') || 'mentorme Up';
     const iconName = localStorage.getItem('workspaceIcon') || 'Layers3';
+    const id = localStorage.getItem('workspaceId');
     setWorkspaceName(name);
+    setWorkspaceId(id);
+
     if (iconName === 'HomeIcon') {
       setWorkspaceIcon(<HomeIcon className="h-6 w-6" />);
     } else {
@@ -85,9 +83,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, []);
 
   useEffect(() => {
-    if (isCEO && pathname !== '/grievances') {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
+
+  useEffect(() => {
+    if (isCEO && pathname !== '/grievances' && workspaceId) {
         const checkGrievances = async () => {
-            const hasNew = await hasNewGrievances();
+            const hasNew = await hasNewGrievances(workspaceId);
             setShowNotification(hasNew);
         }
         checkGrievances();
@@ -98,7 +103,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     } else {
       setShowNotification(false);
     }
-  }, [isCEO, pathname]);
+  }, [isCEO, pathname, workspaceId]);
 
   if (loading || !user) {
     return (
@@ -168,6 +173,9 @@ function UserMenu() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    localStorage.removeItem('workspaceId');
+    localStorage.removeItem('workspaceName');
+    localStorage.removeItem('workspaceIcon');
     router.push('/');
   };
   

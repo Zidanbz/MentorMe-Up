@@ -24,7 +24,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 };
 
 
-export const createUserProfile = async (user: { uid: string; email: string | null, displayName: string | null, photoURL: string | null }): Promise<UserProfile> => {
+export const createUserProfile = async (user: { uid: string; email: string | null, displayName: string | null, photoURL: string | null }, workspaceId: string): Promise<UserProfile> => {
     const { uid, email, displayName, photoURL } = user;
     
     if (!email) throw new Error("Email is required to create a profile.");
@@ -39,6 +39,7 @@ export const createUserProfile = async (user: { uid: string; email: string | nul
         displayName: displayName || email.split('@')[0],
         role,
         photoURL: photoURL || '',
+        workspaceId,
     };
 
     await setDoc(userRef, newUserProfile);

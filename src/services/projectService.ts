@@ -17,7 +17,9 @@ import {
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
-const projectsCollection = collection(db, 'projects');
+const getProjectsCollection = (workspaceId: string) => 
+    collection(db, 'workspaces', workspaceId, 'projects');
+
 
 // Helper to convert single level date properties to Firestore Timestamps
 const convertDatesToTimestamps = (data: any): any => {
@@ -34,13 +36,15 @@ const convertDatesToTimestamps = (data: any): any => {
 
 
 // Project functions
-export const getProjects = async (): Promise<Project[]> => {
+export const getProjects = async (workspaceId: string): Promise<Project[]> => {
+    const projectsCollection = getProjectsCollection(workspaceId);
     const q = query(projectsCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
 };
 
-export const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'milestones'>): Promise<Project> => {
+export const addProject = async (workspaceId: string, project: Omit<Project, 'id' | 'createdAt' | 'milestones'>): Promise<Project> => {
+    const projectsCollection = getProjectsCollection(workspaceId);
     const newProject = {
         ...project,
         milestones: [],
@@ -51,20 +55,20 @@ export const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'mi
     return { ...docSnap.data(), id: docRef.id } as Project;
 };
 
-export const updateProject = async (id: string, project: Partial<Project>): Promise<void> => {
-    const docRef = doc(db, 'projects', id);
+export const updateProject = async (workspaceId: string, id: string, project: Partial<Project>): Promise<void> => {
+    const docRef = doc(db, 'workspaces', workspaceId, 'projects', id);
     await updateDoc(docRef, project);
 };
 
-export const deleteProject = async (id: string): Promise<void> => {
-    const docRef = doc(db, 'projects', id);
+export const deleteProject = async (workspaceId: string, id: string): Promise<void> => {
+    const docRef = doc(db, 'workspaces', workspaceId, 'projects', id);
     await deleteDoc(docRef);
 };
 
 
 // Milestone functions
-export const addMilestone = async (projectId: string, milestone: Omit<Milestone, 'id' | 'tasks'>): Promise<void> => {
-    const projectRef = doc(db, 'projects', projectId);
+export const addMilestone = async (workspaceId: string, projectId: string, milestone: Omit<Milestone, 'id' | 'tasks'>): Promise<void> => {
+    const projectRef = doc(db, 'workspaces', workspaceId, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
@@ -81,8 +85,8 @@ export const addMilestone = async (projectId: string, milestone: Omit<Milestone,
     });
 };
 
-export const deleteMilestone = async (projectId: string, milestoneId: string): Promise<void> => {
-     const projectRef = doc(db, 'projects', projectId);
+export const deleteMilestone = async (workspaceId: string, projectId: string, milestoneId: string): Promise<void> => {
+     const projectRef = doc(db, 'workspaces', workspaceId, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
@@ -95,8 +99,8 @@ export const deleteMilestone = async (projectId: string, milestoneId: string): P
 }
 
 // Task functions
-export const addTask = async (projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed'>): Promise<void> => {
-    const projectRef = doc(db, 'projects', projectId);
+export const addTask = async (workspaceId: string, projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed'>): Promise<void> => {
+    const projectRef = doc(db, 'workspaces', workspaceId, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
@@ -123,8 +127,8 @@ export const addTask = async (projectId: string, milestoneId: string, task: Omit
     });
 };
 
-export const updateTask = async (projectId: string, milestoneId: string, taskId: string, taskUpdate: Partial<Task>): Promise<void> => {
-    const projectRef = doc(db, 'projects', projectId);
+export const updateTask = async (workspaceId: string, projectId: string, milestoneId: string, taskId: string, taskUpdate: Partial<Task>): Promise<void> => {
+    const projectRef = doc(db, 'workspaces', workspaceId, 'projects', projectId);
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {
@@ -149,8 +153,8 @@ export const updateTask = async (projectId: string, milestoneId: string, taskId:
     });
 };
 
-export const deleteTask = async (projectId: string, milestoneId: string, taskId: string): Promise<void> => {
-     const projectRef = doc(db, 'projects', projectId);
+export const deleteTask = async (workspaceId: string, projectId: string, milestoneId: string, taskId: string): Promise<void> => {
+     const projectRef = doc(db, 'workspaces', workspaceId, 'projects', projectId);
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
         if (!projectDoc.exists()) {

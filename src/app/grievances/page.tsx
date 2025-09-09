@@ -50,8 +50,9 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
   });
 
   const handleAddGrievance = async (data: GrievanceFormData) => {
-    if (!user || !user.email) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to submit a grievance.' });
+    const workspaceId = localStorage.getItem('workspaceId');
+    if (!user || !user.email || !workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in and in a workspace to submit a grievance.' });
       return;
     }
     try {
@@ -72,7 +73,7 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
         file: fileData,
       };
 
-      await addGrievance(grievanceData, { userId: user.uid, userEmail: user.email });
+      await addGrievance(workspaceId, grievanceData, { userId: user.uid, userEmail: user.email });
       toast({ title: 'Success', description: 'Your grievance has been submitted.' });
       setIsDialogOpen(false);
       reset();
@@ -134,19 +135,30 @@ function AddGrievanceDialog({ onGrievanceAdded }: { onGrievanceAdded: () => void
 export default function GrievancesPage() {
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const isCEO = user?.email === 'ceo@mentorme.com';
 
+  useEffect(() => {
+    const id = localStorage.getItem('workspaceId');
+    if (id) {
+        setWorkspaceId(id);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
+        setLoading(false);
+    }
+  }, [toast]);
+
   const fetchGrievances = async () => {
-    if (!user?.uid || !user?.email) {
+    if (!user?.uid || !user?.email || !workspaceId) {
         setLoading(false);
         return;
     }
 
     try {
       setLoading(true);
-      const data = await getGrievances({ userId: user.uid, userEmail: user.email });
+      const data = await getGrievances(workspaceId, { userId: user.uid, userEmail: user.email });
       // Client-side sorting to ensure order
       data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setGrievances(data);
@@ -158,14 +170,14 @@ export default function GrievancesPage() {
   };
 
   useEffect(() => {
-    if (user && user.uid && user.email) {
+    if (user && user.uid && user.email && workspaceId) {
       fetchGrievances();
       if (isCEO) {
         // Mark grievances as seen when the CEO opens the page
-        markGrievancesAsSeen();
+        markGrievancesAsSeen(workspaceId);
       }
     }
-  }, [user, isCEO]);
+  }, [user, isCEO, workspaceId]);
 
 
   if (loading) {

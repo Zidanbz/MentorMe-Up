@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 
 const formSchema = z.object({
@@ -21,11 +22,13 @@ const formSchema = z.object({
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-export function LoginForm({ placeholderEmail = 'name@mentorme.com' }: { placeholderEmail?: string }) {
+export function LoginForm({ placeholderEmail = 'name@mentorme.com', workspaceId }: { placeholderEmail?: string, workspaceId: string | null }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { checkUserWorkspace } = useAuth();
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -36,9 +39,32 @@ export function LoginForm({ placeholderEmail = 'name@mentorme.com' }: { placehol
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!workspaceId) {
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: 'Workspace not selected. Please go back and select a workspace.',
+      });
+      return;
+    }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      const isMember = await checkUserWorkspace(user.uid, workspaceId);
+
+      if (!isMember) {
+        await auth.signOut();
+        toast({
+          variant: 'destructive',
+          title: 'Access Denied',
+          description: `You are not a member of the ${localStorage.getItem('workspaceName')} workspace.`,
+        });
+        setLoading(false);
+        return;
+      }
+      
       router.push('/dashboard');
     } catch (error: any) {
       toast({

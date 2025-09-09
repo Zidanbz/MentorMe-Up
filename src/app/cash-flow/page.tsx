@@ -88,15 +88,28 @@ export default function CashFlowPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
   const isCFO = user?.email === 'cfo@mentorme.com';
+  
+  useEffect(() => {
+    const id = localStorage.getItem('workspaceId');
+    if (id) {
+      setWorkspaceId(id);
+    } else {
+        // Handle case where workspaceId is not found, maybe redirect or show an error
+        toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please select a workspace first.' });
+        setLoading(false);
+    }
+  }, [toast]);
 
-  const fetchTransactions = async () => {
+
+  const fetchTransactions = async (id: string) => {
     try {
       setLoading(true);
-      const data = await getTransactions();
+      const data = await getTransactions(id);
       setTransactions(data);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch transactions.' });
@@ -106,13 +119,16 @@ export default function CashFlowPage() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (workspaceId) {
+        fetchTransactions(workspaceId);
+    }
+  }, [workspaceId]);
 
   const handleAddTransaction = async (data: TransactionFormData) => {
+    if (!workspaceId) return;
     try {
-      await addTransaction(data);
-      fetchTransactions();
+      await addTransaction(workspaceId, data);
+      fetchTransactions(workspaceId);
       setIsDialogOpen(false);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add transaction.' });
@@ -120,11 +136,11 @@ export default function CashFlowPage() {
   };
 
   const handleUpdateTransaction = async (data: TransactionFormData) => {
-      if (!editingTransaction?.id) return;
+    if (!editingTransaction?.id || !workspaceId) return;
     try {
-      await updateTransaction(editingTransaction.id, data);
+      await updateTransaction(workspaceId, editingTransaction.id, data);
       setEditingTransaction(null);
-      fetchTransactions();
+      fetchTransactions(workspaceId);
       setIsDialogOpen(false);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to update transaction.' });
@@ -132,10 +148,11 @@ export default function CashFlowPage() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    if (!workspaceId) return;
     setDeletingId(id);
     try {
-        await deleteTransaction(id);
-        fetchTransactions();
+        await deleteTransaction(workspaceId, id);
+        fetchTransactions(workspaceId);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete transaction.' });
     } finally {
