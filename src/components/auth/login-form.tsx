@@ -9,10 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 import { FirebaseError } from 'firebase/app';
 import { getUserProfile } from '@/services/userService';
 
@@ -38,7 +37,6 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { checkUserWorkspace } = useAuth();
   
   const domainErrorMessage = `Only @${requiredDomain} emails are allowed for this workspace.`;
   
@@ -63,45 +61,24 @@ export function LoginForm({
     }
     setLoading(true);
     try {
-      // First, try to sign in the user.
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      // After sign-in, check if they belong to the selected workspace.
-      const profile = await getUserProfile(user.uid);
-      if (profile && profile.workspaceId === workspaceId) {
-        router.push('/dashboard');
-      } else {
-        // If profile exists but workspace doesn't match, deny access.
-        await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Access Denied',
-          description: `You are not a member of the ${localStorage.getItem('workspaceName') || 'selected'} workspace.`,
-        });
-      }
+      // The onAuthStateChanged listener in useAuth will handle profile creation for new users
+      // and validation for existing users. This simplifies the form's responsibility.
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      // The listener will redirect on success.
     } catch (error: any) {
-      if (error instanceof FirebaseError && error.code === 'auth/user-not-found') {
-        // If the user doesn't exist, create a new account for them in the selected workspace.
-        try {
-          const newUserCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-          // The onAuthStateChanged listener in useAuth will handle profile creation.
-          router.push('/dashboard');
-        } catch (creationError: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Registration Failed',
-            description: creationError.message,
-          });
+        if (error instanceof FirebaseError && error.code === 'auth/user-not-found') {
+             toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: 'User account not found. Please contact your administrator.',
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: 'Invalid email or password.',
+            });
         }
-      } else {
-        // Handle other errors like wrong password.
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: 'Invalid email or password.',
-        });
-      }
     } finally {
       setLoading(false);
     }
