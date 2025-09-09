@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -183,12 +183,10 @@ export default function ProjectTaskPage() {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : projects.length === 0 ? (
-          <Card className="text-center py-12">
-             <CardContent>
-                <h3 className="text-xl font-semibold">No Projects Yet</h3>
-                <p className="text-muted-foreground mt-2">Get started by creating your first project.</p>
-             </CardContent>
-          </Card>
+          <div className="text-center py-12 rounded-lg border bg-card text-card-foreground shadow-sm">
+             <h3 className="text-xl font-semibold">No Projects Yet</h3>
+             <p className="text-muted-foreground mt-2">Get started by creating your first project.</p>
+          </div>
         ) : (
           <Accordion type="multiple" className="space-y-4">
             {projects.map(project => (
@@ -543,3 +541,5 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
     </Dialog>
   );
 }
+
+    
