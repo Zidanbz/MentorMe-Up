@@ -13,7 +13,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { FirebaseError } from 'firebase/app';
-import { getUserProfile } from '@/services/userService';
 
 
 const createFormSchema = (requiredDomain: string, domainErrorMessage: string) => z.object({
@@ -26,11 +25,9 @@ const createFormSchema = (requiredDomain: string, domainErrorMessage: string) =>
 
 export function LoginForm({ 
     placeholderEmail = 'name@example.com', 
-    workspaceId,
     requiredDomain
 }: { 
     placeholderEmail?: string, 
-    workspaceId: string | null,
     requiredDomain: string
 }) {
   const router = useRouter();
@@ -51,33 +48,33 @@ export function LoginForm({
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!workspaceId) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: 'Workspace not selected. Please go back and select a workspace.',
-      });
-      return;
-    }
     setLoading(true);
     try {
-      // The onAuthStateChanged listener in useAuth will handle profile creation for new users
-      // and validation for existing users. This simplifies the form's responsibility.
+      // The onAuthStateChanged listener in useAuth will handle everything else.
+      // This form's only job is to authenticate with Firebase.
       await signInWithEmailAndPassword(auth, values.email, values.password);
-      // The listener will redirect on success.
+      // On success, the listener in useAuth will redirect.
     } catch (error: any) {
-        if (error instanceof FirebaseError && error.code === 'auth/user-not-found') {
-             toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: 'User account not found. Please contact your administrator.',
-            });
-        } else {
+        if (error instanceof FirebaseError) {
+          if (error.code === 'auth/user-not-found') {
             toast({
+              variant: 'destructive',
+              title: 'Login Failed',
+              description: 'This user account does not exist. Please contact your administrator.',
+            });
+          } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+             toast({
                 variant: 'destructive',
                 title: 'Login Failed',
                 description: 'Invalid email or password.',
             });
+          } else {
+             toast({
+                variant: 'destructive',
+                title: 'Login Error',
+                description: 'An unexpected error occurred. Please try again.',
+            });
+          }
         }
     } finally {
       setLoading(false);

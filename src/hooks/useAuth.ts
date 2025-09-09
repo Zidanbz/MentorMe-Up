@@ -37,26 +37,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const activeWorkspaceId = localStorage.getItem('workspaceId');
         const workspaceName = localStorage.getItem('workspaceName') || 'the selected';
 
-        // If user is logged in but there's no workspace selected (e.g., direct navigation)
-        // and they are not on the root page, log them out and send to root.
-        if (!activeWorkspaceId && pathname !== '/') {
+        // If user is logged in but there's no workspace selected (e.g., direct navigation to a protected route)
+        // and they are not on a public page, log them out and send to root.
+        if (!activeWorkspaceId && !pathname.startsWith('/login') && pathname !== '/') {
             await signOut(auth);
             router.push('/');
-            // No need to continue processing, so we exit early.
-            // The state will be updated in the 'else' block below.
+            // Early exit after sign out
         } else {
             try {
                 let profile = await getUserProfile(firebaseUser.uid);
 
                 if (!profile) {
-                    // This is a new user who has authenticated but doesn't have a profile in Firestore.
-                    // We must create one for them in the workspace they just selected.
+                    // This is a first-time sign-in for this user. Create a profile in the selected workspace.
                     if (activeWorkspaceId) {
                          profile = await createUserProfile(firebaseUser, activeWorkspaceId);
                     } else {
-                        // This is an edge case: user is new but somehow lost their workspace selection.
-                        // The safest thing is to log them out and have them start over.
-                        throw new Error("Workspace selection was lost during sign-up. Please try again.");
+                        // This is an edge case: user is authenticated but no workspace was set.
+                        // Safest action is to log them out. This can happen if they clear localStorage
+                        // and navigate directly to a protected page.
+                        throw new Error("Workspace selection not found. Please log in again.");
                     }
                 }
 
@@ -67,8 +66,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         title: 'Access Denied',
                         description: `Your account is not a member of the "${workspaceName}" workspace.`,
                     });
-                    await signOut(auth); // Sign out the user
-                    router.push(`/login?workspace=${profile.workspaceId}`); // Redirect to their actual workspace login
+                    await signOut(auth);
+                    router.push('/'); 
                 } else {
                     // Success: User is authenticated and belongs to the correct workspace.
                     setUser(firebaseUser);
@@ -102,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]); // Add pathname to dependencies to re-run checks on navigation
+  }, [pathname, router]); // Dependency on pathname is important to re-run checks.
 
   return createElement(AuthContext.Provider, { value: { user, userProfile, loading } }, children);
 };
