@@ -34,47 +34,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setLoading(true);
-        const activeWorkspaceId = localStorage.getItem('workspaceId');
-        const workspaceName = localStorage.getItem('workspaceName') || 'the selected workspace';
-
-        // This is the key logic block.
         try {
           let profile = await getUserProfile(firebaseUser.uid);
 
           if (!profile) {
-            // SCENARIO 1: NEW USER - Profile does not exist.
-            // A workspace MUST be selected to create a profile.
+            // SCENARIO 1: NEW USER / FIRST TIME LOGIN IN THIS ENV
+            // A workspaceId must be in local storage to create a new profile.
+            const activeWorkspaceId = localStorage.getItem('workspaceId');
             if (activeWorkspaceId) {
               profile = await createUserProfile(firebaseUser, activeWorkspaceId);
-              setUser(firebaseUser);
-              setUserProfile(profile);
-              router.push('/dashboard');
             } else {
               // This can happen if a user is authenticated but lands on a page without a workspace selected.
-              // Log them out to force a workspace selection.
-              throw new Error("No workspace selected. Please log in again.");
-            }
-          } else {
-            // SCENARIO 2: EXISTING USER - Profile exists.
-            // We must now validate if they are accessing the correct workspace.
-            if (profile.workspaceId === activeWorkspaceId) {
-              // User is in the correct workspace.
-              setUser(firebaseUser);
-              setUserProfile(profile);
-               if (pathname.startsWith('/login') || pathname === '/') {
-                  router.push('/dashboard');
-               }
-            } else {
-              // User is trying to access a workspace they don't belong to.
-               throw new Error(`Your account does not belong to the "${workspaceName}".`);
+              // Forcing a logout is the safest path.
+              throw new Error("No workspace selected for new user profile. Please log in again.");
             }
           }
+          
+          // By this point, the user has a profile.
+          // Set user and profile state.
+          setUser(firebaseUser);
+          setUserProfile(profile);
+
+          // Now, set the local storage to match the user's actual workspace from their profile.
+          // This ensures consistency even if they used a different login page.
+          localStorage.setItem('workspaceId', profile.workspaceId);
+          if (profile.workspaceId === 'mentorme') {
+            localStorage.setItem('workspaceName', 'MentorMe Up');
+            localStorage.setItem('workspaceIcon', 'Layers3');
+          } else if (profile.workspaceId === 'homeworkers') {
+            localStorage.setItem('workspaceName', 'Home Workers Up');
+            localStorage.setItem('workspaceIcon', 'HomeIcon');
+          }
+
+
+          // Redirect to dashboard if they are on a public page
+          if (pathname.startsWith('/login') || pathname === '/') {
+              router.push('/dashboard');
+          }
+
         } catch (error) {
            console.error("Authentication process error:", error);
            const errorMessage = error instanceof Error ? error.message : 'An unknown authentication error occurred.';
            toast({
                variant: 'destructive',
-               title: 'Access Denied',
+               title: 'Authentication Error',
                description: errorMessage,
            });
            await signOut(auth);
@@ -94,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount to set up the listener.
+  }, []); 
 
   return createElement(AuthContext.Provider, { value: { user, userProfile, loading } }, children);
 };
