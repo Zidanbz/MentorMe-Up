@@ -10,10 +10,14 @@ const roleMappings: { [key: string]: UserProfile['role'] } = {
   'cmo@mentorme.com': 'CMO',
   'chro@mentorme.com': 'CHRO',
   'cdo@mentorme.com': 'CDO',
-  // Default for mentorme.com that is not a C-level
-  'member@mentorme.com': 'Member', 
-  // Add specific roles for howe.com if necessary, or a default
+  'member@mentorme.com': 'Member',
   'ceo@howe.com': 'CEO',
+  'cfo@howe.com': 'CFO',
+  'coo@howe.com': 'COO',
+  'cto@howe.com': 'CTO',
+  'cmo@howe.com': 'CMO',
+  'chro@howe.com': 'CHRO',
+  'cdo@howe.com': 'CDO',
   'member@howe.com': 'Member',
 };
 
