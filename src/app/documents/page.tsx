@@ -388,7 +388,7 @@ function DocumentTable({ documents, onDelete, loading, userRole, allowedCategori
 }) {
     
     return (
-        <Card>
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -467,7 +467,7 @@ function DocumentTable({ documents, onDelete, loading, userRole, allowedCategori
                     )}
                 </TableBody>
             </Table>
-        </Card>
+        </div>
     );
 }
 
@@ -512,10 +512,4 @@ function DeleteDocumentMenuItem({ doc, onDelete }: { doc: Document, onDelete: (d
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-
-// A wrapper card for the table to provide a consistent border/shadow
-function Card({children}: {children: React.ReactNode}) {
-    return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
 }

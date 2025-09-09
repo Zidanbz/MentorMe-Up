@@ -223,7 +223,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   processingAction: string | null,
 }) {
   return (
-    <Card>
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{project.name}</CardTitle>
         <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
             <p className="text-sm text-muted-foreground px-4 py-2">No milestones in this project yet.</p>
         )}
       </CardContent>
-    </Card>
+    </div>
   )
 }
 

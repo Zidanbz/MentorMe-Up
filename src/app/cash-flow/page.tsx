@@ -365,7 +365,7 @@ function TransactionDialog({ isOpen, setIsOpen, onAddTransaction, onUpdateTransa
 function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO, deletingId }: { transactions: Transaction[], onEdit: (transaction: Transaction) => void, onDelete: (id: string) => void, loading: boolean, isCFO: boolean, deletingId: string | null }) {
 
     return (
-        <Card>
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -437,11 +437,6 @@ function TransactionTable({ transactions, onEdit, onDelete, loading, isCFO, dele
                     )}
                 </TableBody>
             </Table>
-        </Card>
+        </div>
     );
-}
-
-// A wrapper card for the table to provide a consistent border/shadow
-function Card({children}: {children: React.ReactNode}) {
-    return <div className="rounded-lg border bg-card text-card-foreground shadow-sm">{children}</div>
 }
