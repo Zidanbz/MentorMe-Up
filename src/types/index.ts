@@ -8,6 +8,7 @@ export type Document = {
   createdAt: Timestamp;
   url: string;
   storagePath: string;
+  workspaceId: string;
 };
 
 export type Transaction = {
@@ -17,6 +18,7 @@ export type Transaction = {
   category: 'Salary' | 'Marketing' | 'Investment' | 'Operations' | 'Other';
   description: string;
   date: Timestamp;
+  workspaceId: string;
 };
 
 export type RecentActivity = {
@@ -49,6 +51,7 @@ export type Project = {
   name: string;
   milestones: Milestone[];
   createdAt: Timestamp;
+  workspaceId: string;
 };
 
 export type Grievance = {
@@ -62,6 +65,7 @@ export type Grievance = {
   createdAt: Date;
   status: 'Open' | 'In Progress' | 'Resolved';
   seenByCEO: boolean;
+  workspaceId: string;
 };
 
 // Type for data sent from client to server for grievance submission

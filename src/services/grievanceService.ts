@@ -15,8 +15,8 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const getGrievanceCollection = (workspaceId: string) =>
-    collection(db, 'workspaces', workspaceId, 'grievances');
+const grievanceCollection = collection(db, 'grievances');
+
 
 type GetGrievancesParams = {
     userId: string;
@@ -29,19 +29,17 @@ export const getGrievances = async (workspaceId: string, user: GetGrievancesPara
     throw new Error('User authentication details are incomplete.');
   }
   
-  const grievanceCollection = getGrievanceCollection(workspaceId);
-
   let q;
   if (user.userRole === 'CEO') {
-    // CEO sees all grievances, sorted by most recent
-    q = query(grievanceCollection, orderBy('createdAt', 'desc'));
+    // CEO sees all grievances for their workspace, sorted by most recent
+    q = query(grievanceCollection, where('workspaceId', '==', workspaceId), orderBy('createdAt', 'desc'));
   } else {
-    // Other users see only their own grievances. 
-    // We remove the orderBy clause to avoid needing a composite index.
-    // Sorting will be handled on the client.
+    // Other users see only their own grievances for their workspace. 
     q = query(
       grievanceCollection,
-      where('userId', '==', user.userId)
+      where('userId', '==', user.userId),
+      where('workspaceId', '==', workspaceId),
+      orderBy('createdAt', 'desc')
     );
   }
 
@@ -92,20 +90,20 @@ export const addGrievance = async (
     createdAt: Timestamp.now(),
     status: 'Open' as const,
     seenByCEO: false,
+    workspaceId: workspaceId, // Add workspaceId
     ...(fileUrl && { fileUrl }),
     ...(filePath && { filePath }),
   };
 
-  const grievanceCollection = getGrievanceCollection(workspaceId);
-await addDoc(grievanceCollection, newGrievance);
+  await addDoc(grievanceCollection, newGrievance);
 };
 
 
 export const hasNewGrievances = async (workspaceId: string): Promise<boolean> => {
-    const grievanceCollection = getGrievanceCollection(workspaceId);
     const q = query(
         grievanceCollection, 
         where('seenByCEO', '==', false),
+        where('workspaceId', '==', workspaceId),
         limit(1)
     );
     const snapshot = await getDocs(q);
@@ -113,8 +111,7 @@ export const hasNewGrievances = async (workspaceId: string): Promise<boolean> =>
 };
 
 export const markGrievancesAsSeen = async (workspaceId: string): Promise<void> => {
-    const grievanceCollection = getGrievanceCollection(workspaceId);
-    const q = query(grievanceCollection, where('seenByCEO', '==', false));
+    const q = query(grievanceCollection, where('seenByCEO', '==', false), where('workspaceId', '==', workspaceId));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) return;
