@@ -12,7 +12,8 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState('mentorme Up');
   const [icon, setIcon] = useState(<Layers3 className="h-8 w-8" />);
-  const [placeholderEmail, setPlaceholderEmail] = useState('name@example.com');
+  const [placeholderEmail, setPlaceholderEmail] = useState('name@mentorme.com');
+  const [requiredDomain, setRequiredDomain] = useState('mentorme.com');
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,7 +21,8 @@ function LoginPageContent() {
     if (workspace === 'homeworkers') {
       setTitle('Home Workers Up');
       setIcon(<HomeIcon className="h-8 w-8" />);
-      setPlaceholderEmail('name@example.com');
+      setPlaceholderEmail('name@howe.com');
+      setRequiredDomain('howe.com');
       setWorkspaceId('homeworkers');
       localStorage.setItem('workspaceId', 'homeworkers');
       localStorage.setItem('workspaceName', 'Home Workers Up');
@@ -28,7 +30,8 @@ function LoginPageContent() {
     } else {
       setTitle('mentorme Up');
       setIcon(<Layers3 className="h-8 w-8" />);
-      setPlaceholderEmail('name@example.com');
+      setPlaceholderEmail('name@mentorme.com');
+      setRequiredDomain('mentorme.com');
       setWorkspaceId('mentorme');
       localStorage.setItem('workspaceId', 'mentorme');
       localStorage.setItem('workspaceName', 'mentorme Up');
@@ -45,10 +48,14 @@ function LoginPageContent() {
               {icon}
             </div>
             <CardTitle className="text-3xl font-bold text-primary">{title}</CardTitle>
-            <CardDescription>Welcome! Please sign in or register to continue.</CardDescription>
+            <CardDescription>Welcome! Please sign in to continue.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm placeholderEmail={placeholderEmail} workspaceId={workspaceId} />
+            <LoginForm 
+              placeholderEmail={placeholderEmail} 
+              workspaceId={workspaceId}
+              requiredDomain={requiredDomain}
+            />
           </CardContent>
         </Card>
       </div>

@@ -6,30 +6,42 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useState, useMemo } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { FirebaseError } from 'firebase/app';
 
 
-const formSchema = z.object({
-  email: z.string().email({ message: 'Invalid email address.' }),
+const createFormSchema = (requiredDomain: string, domainErrorMessage: string) => z.object({
+  email: z.string().email({ message: 'Invalid email address.' }).refine(
+    (email) => email.endsWith(`@${requiredDomain}`),
+    { message: domainErrorMessage }
+  ),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-export function LoginForm({ placeholderEmail = 'name@example.com', workspaceId }: { placeholderEmail?: string, workspaceId: string | null }) {
+export function LoginForm({ 
+    placeholderEmail = 'name@example.com', 
+    workspaceId,
+    requiredDomain
+}: { 
+    placeholderEmail?: string, 
+    workspaceId: string | null,
+    requiredDomain: string
+}) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { checkUserWorkspace } = useAuth();
-
+  
+  const domainErrorMessage = `Only @${requiredDomain} emails are allowed for this workspace.`;
+  
+  const formSchema = useMemo(() => createFormSchema(requiredDomain, domainErrorMessage), [requiredDomain, domainErrorMessage]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,7 +62,6 @@ export function LoginForm({ placeholderEmail = 'name@example.com', workspaceId }
     }
     setLoading(true);
     try {
-      // First, try to sign in
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
@@ -70,30 +81,12 @@ export function LoginForm({ placeholderEmail = 'name@example.com', workspaceId }
       router.push('/dashboard');
 
     } catch (error: any) {
-        // If user does not exist, try to create a new user
-        if (error instanceof FirebaseError && error.code === 'auth/user-not-found') {
-             try {
-                const newUserCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-                // The onAuthStateChanged listener in AuthProvider will handle profile creation
-                toast({
-                    title: 'Welcome!',
-                    description: 'Your account has been created successfully.',
-                });
-                router.push('/dashboard');
-             } catch (creationError: any) {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Registration Failed',
-                    description: 'Could not create your account. Please try again.',
-                });
-             }
-        } else {
-             toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: 'Invalid email or password.',
-            });
-        }
+        // Generic error for 'auth/user-not-found', 'auth/wrong-password', etc.
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: 'Invalid email or password.',
+        });
     } finally {
       setLoading(false);
     }
@@ -142,7 +135,7 @@ export function LoginForm({ placeholderEmail = 'name@example.com', workspaceId }
         />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Sign In or Register
+          Sign In
         </Button>
       </form>
     </Form>
