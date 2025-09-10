@@ -57,6 +57,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -132,13 +133,16 @@ export default function DocumentsPage() {
     }, [activeTab, searchTerm]);
 
     const handleAddDocument = async (data: DocumentFormData) => {
-        if (!userProfile?.workspaceId) return;
+        if (!userProfile?.workspaceId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
+            return;
+        }
         setIsUploading(true);
         try {
             await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments(userProfile.workspaceId);
-            setIsUploadDialogOpen(false);
+            setIsUploadDialogOpen(false); // Close dialog on success
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
         } finally {
@@ -274,7 +278,7 @@ export default function DocumentsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="flex-wrap h-auto">
                     <TabsTrigger value="all">All</TabsTrigger>
-                    {userAllowedCategories.length > 0 ? (
+                    {(userAllowedCategories.length > 0 || userRole === 'CEO') ? (
                         allCategories.filter(cat => userAllowedCategories.includes(cat) || userRole === 'CEO').map(cat => (
                             <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
                         ))
@@ -282,22 +286,21 @@ export default function DocumentsPage() {
                          <TabsTrigger value="none" disabled>No categories accessible</TabsTrigger>
                     )}
                 </TabsList>
-
-                <div className="mt-4 rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <DocumentTable 
-                        documents={paginatedDocuments} 
-                        onDelete={handleDeleteDocument} 
-                        loading={loading}
-                        userRole={userRole}
-                        allowedCategories={userAllowedCategories} 
-                        deletingId={deletingId}
-                        selectedIds={selectedIds}
-                        onSelectAll={handleSelectAll}
-                        onSelectOne={handleSelectOne}
-                    />
-                </div>
-
             </Tabs>
+            
+            <div className="mt-4 rounded-lg border bg-card text-card-foreground shadow-sm">
+                <DocumentTable 
+                    documents={paginatedDocuments} 
+                    onDelete={handleDeleteDocument} 
+                    loading={loading}
+                    userRole={userRole}
+                    allowedCategories={userAllowedCategories} 
+                    deletingId={deletingId}
+                    selectedIds={selectedIds}
+                    onSelectAll={handleSelectAll}
+                    onSelectOne={handleSelectOne}
+                />
+            </div>
 
              <Pagination
                 currentPage={currentPage}
