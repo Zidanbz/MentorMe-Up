@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     Select,
@@ -56,7 +57,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -138,7 +138,7 @@ export default function DocumentsPage() {
             await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments(userProfile.workspaceId);
-            setIsUploadDialogOpen(false);
+            setIsUploadDialogOpen(false); // Close dialog on success
             return true;
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
@@ -280,7 +280,24 @@ export default function DocumentsPage() {
                 ))}
             </TabsList>
             
-            <TabsContent value={activeTab} forceMount>
+            {allCategories.map(category => (
+                <TabsContent key={category} value={category} forceMount>
+                     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                        <DocumentTable 
+                            documents={paginatedDocuments} 
+                            onDelete={handleDeleteDocument} 
+                            loading={loading}
+                            userRole={userRole}
+                            allowedCategories={userAllowedCategories} 
+                            deletingId={deletingId}
+                            selectedIds={selectedIds}
+                            onSelectAll={handleSelectAll}
+                            onSelectOne={handleSelectOne}
+                        />
+                     </div>
+                </TabsContent>
+            ))}
+             <TabsContent value="all" forceMount>
                  <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <DocumentTable 
                         documents={paginatedDocuments} 
@@ -319,13 +336,13 @@ type UploadDocumentDialogProps = {
 function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories, isUploading }: UploadDocumentDialogProps) {
     const { register, handleSubmit, control, reset, formState: { errors } } = useForm<DocumentFormData>({
         resolver: zodResolver(documentSchema),
-        defaultValues: { category: allowedCategories[0] }
     });
 
     const onSubmit = async (data: DocumentFormData) => {
         const success = await onAddDocument(data);
         if (success) {
             reset();
+            setIsOpen(false);
         }
     };
 
@@ -356,6 +373,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                             <Controller
                                 name="category"
                                 control={control}
+                                defaultValue={allowedCategories[0]}
                                 render={({ field }) => (
                                      <Select onValueChange={field.onChange} value={field.value} disabled={isUploading}>
                                         <SelectTrigger className="col-span-3">

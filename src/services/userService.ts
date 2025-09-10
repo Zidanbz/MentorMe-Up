@@ -10,7 +10,6 @@ const roleMappings: { [key: string]: UserProfile['role'] } = {
   'cmo@mentorme.com': 'CMO',
   'chro@mentorme.com': 'CHRO',
   'cdo@mentorme.com': 'CDO',
-  'member@mentorme.com': 'Member',
   'ceo@howe.com': 'CEO',
   'cfo@howe.com': 'CFO',
   'coo@howe.com': 'COO',
@@ -18,7 +17,6 @@ const roleMappings: { [key: string]: UserProfile['role'] } = {
   'cmo@howe.com': 'CMO',
   'chro@howe.com': 'CHRO',
   'cdo@howe.com': 'CDO',
-  'member@howe.com': 'Member',
   'ceo@neo.com': 'CEO',
   'cfo@neo.com': 'CFO',
   'coo@neo.com': 'COO',
@@ -26,7 +24,6 @@ const roleMappings: { [key: string]: UserProfile['role'] } = {
   'cmo@neo.com': 'CMO',
   'chro@neo.com': 'CHRO',
   'cdo@neo.com': 'CDO',
-  'member@neo.com': 'Member',
 };
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -48,17 +45,7 @@ export const createUserProfile = async (user: { uid: string; email: string | nul
     const userRef = doc(db, 'users', uid);
     
     // Determine a default role if a specific c-level isn't matched
-    let role: UserProfile['role'] = 'Member';
-    if (roleMappings[email]) {
-        role = roleMappings[email];
-    } else if (email.endsWith('@mentorme.com')) {
-        role = 'Member'; // Default for mentorme
-    } else if (email.endsWith('@howe.com')) {
-        role = 'Member'; // Default for howe
-    } else if (email.endsWith('@neo.com')) {
-        role = 'Member'; // Default for neo
-    }
-
+    const role: UserProfile['role'] = roleMappings[email] || 'Member';
 
     const newUserProfile: UserProfile = {
         uid,
