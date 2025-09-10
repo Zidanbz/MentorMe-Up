@@ -23,7 +23,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     Select,
@@ -57,6 +56,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -103,8 +103,8 @@ export default function DocumentsPage() {
     const itemsPerPage = 10;
 
     const userRole = userProfile?.role || 'Member';
-    const userAllowedCategories = rolePermissions[userRole] || [];
-    const canUpload = userAllowedCategories.length > 0;
+    const userAllowedCategories = useMemo(() => rolePermissions[userRole] || [], [userRole]);
+    const canUpload = useMemo(() => userAllowedCategories.length > 0, [userAllowedCategories]);
 
     const fetchDocuments = useCallback(async (workspaceId: string) => {
         setLoading(true);
@@ -132,17 +132,15 @@ export default function DocumentsPage() {
     }, [activeTab, searchTerm]);
 
     const handleAddDocument = async (data: DocumentFormData) => {
-        if (!userProfile?.workspaceId) return false;
+        if (!userProfile?.workspaceId) return;
         setIsUploading(true);
         try {
             await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments(userProfile.workspaceId);
-            setIsUploadDialogOpen(false); // Close dialog on success
-            return true;
+            setIsUploadDialogOpen(false);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
-            return false;
         } finally {
             setIsUploading(false);
         }
@@ -273,15 +271,14 @@ export default function DocumentsPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="flex-wrap h-auto">
-                <TabsTrigger value="all">All</TabsTrigger>
-                {allCategories.map(cat => (
-                    <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
-                ))}
-            </TabsList>
-            
-            {allCategories.map(category => (
-                <TabsContent key={category} value={category} forceMount>
+                <TabsList className="flex-wrap h-auto">
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    {allCategories.map(cat => (
+                        <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
+                    ))}
+                </TabsList>
+                
+                <TabsContent value={activeTab} forceMount className="mt-4">
                      <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                         <DocumentTable 
                             documents={paginatedDocuments} 
@@ -296,22 +293,6 @@ export default function DocumentsPage() {
                         />
                      </div>
                 </TabsContent>
-            ))}
-             <TabsContent value="all" forceMount>
-                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <DocumentTable 
-                        documents={paginatedDocuments} 
-                        onDelete={handleDeleteDocument} 
-                        loading={loading}
-                        userRole={userRole}
-                        allowedCategories={userAllowedCategories} 
-                        deletingId={deletingId}
-                        selectedIds={selectedIds}
-                        onSelectAll={handleSelectAll}
-                        onSelectOne={handleSelectOne}
-                    />
-                 </div>
-            </TabsContent>
             </Tabs>
 
              <Pagination
@@ -328,7 +309,7 @@ export default function DocumentsPage() {
 type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddDocument: (data: DocumentFormData) => Promise<boolean>;
+    onAddDocument: (data: DocumentFormData) => void;
     allowedCategories: Document['category'][];
     isUploading: boolean;
 }
@@ -339,11 +320,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
     });
 
     const onSubmit = async (data: DocumentFormData) => {
-        const success = await onAddDocument(data);
-        if (success) {
-            reset();
-            setIsOpen(false);
-        }
+        await onAddDocument(data);
     };
 
     useEffect(() => {
