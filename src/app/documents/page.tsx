@@ -57,7 +57,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -92,7 +91,6 @@ export default function DocumentsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const { user, userProfile, loading: authLoading } = useAuth();
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -132,21 +130,20 @@ export default function DocumentsPage() {
         setSelectedIds([]);
     }, [activeTab, searchTerm]);
 
-    const handleAddDocument = async (data: DocumentFormData) => {
+    const handleAddDocument = async (data: DocumentFormData): Promise<boolean> => {
         if (!userProfile?.workspaceId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found.' });
-            return;
+            return false;
         }
-        setIsUploading(true);
+        
         try {
             await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
             fetchDocuments(userProfile.workspaceId);
-            setIsUploadDialogOpen(false); // Close dialog on success
+            return true; // Success
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
-        } finally {
-            setIsUploading(false);
+            return false; // Failure
         }
     };
 
@@ -236,7 +233,6 @@ export default function DocumentsPage() {
                 setIsOpen={setIsUploadDialogOpen} 
                 onAddDocument={handleAddDocument}
                 allowedCategories={userAllowedCategories}
-                isUploading={isUploading}
             />
             
              <div className="flex justify-between items-center gap-4">
@@ -316,18 +312,21 @@ export default function DocumentsPage() {
 type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddDocument: (data: DocumentFormData) => Promise<void>;
+    onAddDocument: (data: DocumentFormData) => Promise<boolean>;
     allowedCategories: Document['category'][];
-    isUploading: boolean;
 }
 
-function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories, isUploading }: UploadDocumentDialogProps) {
-    const { register, handleSubmit, control, reset, formState: { errors } } = useForm<DocumentFormData>({
+function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories }: UploadDocumentDialogProps) {
+    const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<DocumentFormData>({
         resolver: zodResolver(documentSchema),
     });
 
     const onSubmit = async (data: DocumentFormData) => {
-        await onAddDocument(data);
+        const success = await onAddDocument(data);
+        if (success) {
+            setIsOpen(false);
+            reset();
+        }
     };
 
     useEffect(() => {
@@ -349,7 +348,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="file" className="text-right">File</Label>
-                            <Input id="file" type="file" className="col-span-3" {...register('file')} disabled={isUploading} />
+                            <Input id="file" type="file" className="col-span-3" {...register('file')} disabled={isSubmitting} />
                              {errors.file && <p className="col-span-4 text-right text-red-500 text-xs">{errors.file.message?.toString()}</p>}
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -359,7 +358,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                                 control={control}
                                 defaultValue={allowedCategories[0]}
                                 render={({ field }) => (
-                                     <Select onValueChange={field.onChange} value={field.value} disabled={isUploading}>
+                                     <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -373,9 +372,9 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isUploading}>Cancel</Button>
-                        <Button type="submit" disabled={isUploading}>
-                            {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Upload
                         </Button>
                     </DialogFooter>
