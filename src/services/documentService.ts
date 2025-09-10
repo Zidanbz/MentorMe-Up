@@ -35,7 +35,7 @@ export const addDocument = async (workspaceId: string, file: File, category: Doc
     if (!file) throw new Error("File is required.");
     
     // The storage path should still be workspace-specific to avoid name collisions
-    const storagePath = `${workspaceId}/documents/${Date.now()}_${file.name}`;
+    const storagePath = `workspaces/${workspaceId}/documents/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, storagePath);
     
     await uploadBytes(storageRef, file);
