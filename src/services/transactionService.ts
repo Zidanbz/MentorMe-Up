@@ -5,13 +5,13 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, Timestamp, quer
 const transactionsCollection = collection(db, 'transactions');
 
 export const getTransactions = async (workspaceId: string): Promise<Transaction[]> => {
-    const q = query(transactionsCollection, where('workspaceId', '==', workspaceId), orderBy('date', 'desc'));
+    const q = query(transactionsCollection, where('workspaceId', '==', workspaceId));
     const snapshot = await getDocs(q);
     const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
     
     // For backward compatibility: if the workspace is 'mentorme', also fetch transactions without a workspaceId.
     if (workspaceId === 'mentorme') {
-        const legacyQuery = query(transactionsCollection, where('workspaceId', '==', null), orderBy('date', 'desc'));
+        const legacyQuery = query(transactionsCollection, where('workspaceId', '==', null));
         const legacySnapshot = await getDocs(legacyQuery);
         const legacyTransactions = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
 
@@ -25,6 +25,7 @@ export const getTransactions = async (workspaceId: string): Promise<Transaction[
         return uniqueTransactions;
     }
 
+    transactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
     return transactions;
 };
 

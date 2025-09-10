@@ -7,13 +7,13 @@ const documentsCollection = collection(db, 'documents');
 
 export const getDocuments = async (workspaceId: string): Promise<Document[]> => {
     // We query the top-level collection and filter by workspaceId
-    const q = query(documentsCollection, where('workspaceId', '==', workspaceId), orderBy('createdAt', 'desc'));
+    const q = query(documentsCollection, where('workspaceId', '==', workspaceId));
     const snapshot = await getDocs(q);
     const documents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
 
     // For backward compatibility: if the workspace is 'mentorme', also fetch documents without a workspaceId.
     if (workspaceId === 'mentorme') {
-        const legacyQuery = query(documentsCollection, where('workspaceId', '==', null), orderBy('createdAt', 'desc'));
+        const legacyQuery = query(documentsCollection, where('workspaceId', '==', null));
         const legacySnapshot = await getDocs(legacyQuery);
         const legacyDocuments = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
         
@@ -26,7 +26,8 @@ export const getDocuments = async (workspaceId: string): Promise<Document[]> => 
         uniqueDocuments.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
         return uniqueDocuments;
     }
-
+    
+    documents.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     return documents;
 };
 

@@ -36,13 +36,13 @@ const convertDatesToTimestamps = (data: any): any => {
 
 // Project functions
 export const getProjects = async (workspaceId: string): Promise<Project[]> => {
-    const q = query(projectsCollection, where('workspaceId', '==', workspaceId), orderBy('createdAt', 'desc'));
+    const q = query(projectsCollection, where('workspaceId', '==', workspaceId));
     const snapshot = await getDocs(q);
     const projects = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
 
     // For backward compatibility: if the workspace is 'mentorme', also fetch projects without a workspaceId.
     if (workspaceId === 'mentorme') {
-        const legacyQuery = query(projectsCollection, where('workspaceId', '==', null), orderBy('createdAt', 'desc'));
+        const legacyQuery = query(projectsCollection, where('workspaceId', '==', null));
         const legacySnapshot = await getDocs(legacyQuery);
         const legacyProjects = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
 
@@ -55,7 +55,8 @@ export const getProjects = async (workspaceId: string): Promise<Project[]> => {
         uniqueProjects.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
         return uniqueProjects;
     }
-
+    
+    projects.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     return projects;
 };
 
