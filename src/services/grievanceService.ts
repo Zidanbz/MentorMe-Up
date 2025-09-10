@@ -1,4 +1,3 @@
-'use server';
 
 import { db, storage } from '@/lib/firebase';
 import type { Grievance, GrievanceClientData, UserProfile } from '@/types';
