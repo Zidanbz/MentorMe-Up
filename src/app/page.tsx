@@ -1,6 +1,6 @@
 'use client';
 
-import { Layers3, Home as HomeIcon } from 'lucide-react';
+import { Layers3, Home as HomeIcon, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +28,12 @@ export default function SelectionPage() {
               <Link href="/login/homeworkers" className="flex items-center gap-2">
                 <HomeIcon className="h-5 w-5" />
                 <span>Home Workers</span>
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/login/neo" className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                <span>Neo Up</span>
               </Link>
             </Button>
           </CardContent>

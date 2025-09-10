@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListTodo, ShieldAlert, Star, Home as HomeIcon } from 'lucide-react';
+import { ListTodo, ShieldAlert, Star, Home as HomeIcon, Layers } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -77,6 +77,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
     if (iconName === 'HomeIcon') {
       setWorkspaceIcon(<HomeIcon className="h-6 w-6" />);
+    } else if (iconName === 'Layers') {
+      setWorkspaceIcon(<Layers className="h-6 w-6" />);
     } else {
       setWorkspaceIcon(<Layers3 className="h-6 w-6" />);
     }

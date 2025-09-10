@@ -64,6 +64,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else if (profile.workspaceId === 'homeworkers') {
             localStorage.setItem('workspaceName', 'Home Workers Up');
             localStorage.setItem('workspaceIcon', 'HomeIcon');
+          } else if (profile.workspaceId === 'neo') {
+            localStorage.setItem('workspaceName', 'Neo Up');
+            localStorage.setItem('workspaceIcon', 'Layers');
           }
 
 

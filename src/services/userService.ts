@@ -19,6 +19,14 @@ const roleMappings: { [key: string]: UserProfile['role'] } = {
   'chro@howe.com': 'CHRO',
   'cdo@howe.com': 'CDO',
   'member@howe.com': 'Member',
+  'ceo@neo.com': 'CEO',
+  'cfo@neo.com': 'CFO',
+  'coo@neo.com': 'COO',
+  'cto@neo.com': 'CTO',
+  'cmo@neo.com': 'CMO',
+  'chro@neo.com': 'CHRO',
+  'cdo@neo.com': 'CDO',
+  'member@neo.com': 'Member',
 };
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -47,6 +55,8 @@ export const createUserProfile = async (user: { uid: string; email: string | nul
         role = 'Member'; // Default for mentorme
     } else if (email.endsWith('@howe.com')) {
         role = 'Member'; // Default for howe
+    } else if (email.endsWith('@neo.com')) {
+        role = 'Member'; // Default for neo
     }
 
 
