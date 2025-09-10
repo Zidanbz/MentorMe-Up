@@ -91,6 +91,7 @@ export default function DocumentsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const { user, userProfile, loading: authLoading } = useAuth();
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -132,6 +133,7 @@ export default function DocumentsPage() {
 
     const handleAddDocument = async (data: DocumentFormData) => {
         if (!userProfile?.workspaceId) return false;
+        setIsUploading(true);
         try {
             await addDocument(userProfile.workspaceId, data.file[0], data.category);
             toast({ title: 'Success', description: 'Document uploaded successfully.' });
@@ -141,6 +143,8 @@ export default function DocumentsPage() {
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to upload document.' });
             return false;
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -229,6 +233,7 @@ export default function DocumentsPage() {
                 setIsOpen={setIsUploadDialogOpen} 
                 onAddDocument={handleAddDocument}
                 allowedCategories={userAllowedCategories}
+                isUploading={isUploading}
             />
             
              <div className="flex justify-between items-center gap-4">
@@ -276,17 +281,19 @@ export default function DocumentsPage() {
             </TabsList>
             
             <TabsContent value={activeTab} forceMount>
-                 <DocumentTable 
-                    documents={paginatedDocuments} 
-                    onDelete={handleDeleteDocument} 
-                    loading={loading}
-                    userRole={userRole}
-                    allowedCategories={userAllowedCategories} 
-                    deletingId={deletingId}
-                    selectedIds={selectedIds}
-                    onSelectAll={handleSelectAll}
-                    onSelectOne={handleSelectOne}
-                />
+                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <DocumentTable 
+                        documents={paginatedDocuments} 
+                        onDelete={handleDeleteDocument} 
+                        loading={loading}
+                        userRole={userRole}
+                        allowedCategories={userAllowedCategories} 
+                        deletingId={deletingId}
+                        selectedIds={selectedIds}
+                        onSelectAll={handleSelectAll}
+                        onSelectOne={handleSelectOne}
+                    />
+                 </div>
             </TabsContent>
             </Tabs>
 
@@ -306,10 +313,11 @@ type UploadDocumentDialogProps = {
     setIsOpen: (isOpen: boolean) => void;
     onAddDocument: (data: DocumentFormData) => Promise<boolean>;
     allowedCategories: Document['category'][];
+    isUploading: boolean;
 }
 
-function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories }: UploadDocumentDialogProps) {
-    const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<DocumentFormData>({
+function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategories, isUploading }: UploadDocumentDialogProps) {
+    const { register, handleSubmit, control, reset, formState: { errors } } = useForm<DocumentFormData>({
         resolver: zodResolver(documentSchema),
         defaultValues: { category: allowedCategories[0] }
     });
@@ -318,7 +326,6 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
         const success = await onAddDocument(data);
         if (success) {
             reset();
-            setIsOpen(false);
         }
     };
 
@@ -341,7 +348,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="file" className="text-right">File</Label>
-                            <Input id="file" type="file" className="col-span-3" {...register('file')} disabled={isSubmitting} />
+                            <Input id="file" type="file" className="col-span-3" {...register('file')} disabled={isUploading} />
                              {errors.file && <p className="col-span-4 text-right text-red-500 text-xs">{errors.file.message?.toString()}</p>}
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -350,7 +357,7 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                                 name="category"
                                 control={control}
                                 render={({ field }) => (
-                                     <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
+                                     <Select onValueChange={field.onChange} value={field.value} disabled={isUploading}>
                                         <SelectTrigger className="col-span-3">
                                             <SelectValue placeholder="Select a category" />
                                         </SelectTrigger>
@@ -364,9 +371,9 @@ function UploadDocumentDialog({ isOpen, setIsOpen, onAddDocument, allowedCategor
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isSubmitting}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={isUploading}>Cancel</Button>
+                        <Button type="submit" disabled={isUploading}>
+                            {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Upload
                         </Button>
                     </DialogFooter>
@@ -389,86 +396,84 @@ function DocumentTable({ documents, onDelete, loading, userRole, allowedCategori
 }) {
     
     return (
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <Table>
-                <TableHeader>
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[40px]">
+                            <Checkbox
+                            checked={selectedIds.length > 0 && selectedIds.length === documents.length && documents.length > 0}
+                            onCheckedChange={(checked) => onSelectAll(!!checked)}
+                            aria-label="Select all"
+                            disabled={documents.length === 0}
+                        />
+                    </TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Date Added</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                    {loading ? (
                     <TableRow>
-                        <TableHead className="w-[40px]">
-                             <Checkbox
-                                checked={selectedIds.length > 0 && selectedIds.length === documents.length && documents.length > 0}
-                                onCheckedChange={(checked) => onSelectAll(!!checked)}
-                                aria-label="Select all"
-                                disabled={documents.length === 0}
-                            />
-                        </TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Date Added</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableCell colSpan={6} className="text-center h-24">
+                            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                        </TableCell>
                     </TableRow>
-                </TableHeader>
-                <TableBody>
-                     {loading ? (
+                ) : documents.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={6} className="text-center h-24">
-                                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-                            </TableCell>
-                        </TableRow>
-                    ) : documents.length === 0 ? (
-                         <TableRow>
-                            <TableCell colSpan={6} className="text-center h-24">No documents found.</TableCell>
-                        </TableRow>
-                    ) : (
-                        documents.map((doc) => {
-                            const canDelete = allowedCategories.includes(doc.category) || userRole === 'CEO';
-                            return (
-                                <TableRow key={doc.id} data-state={selectedIds.includes(doc.id) && "selected"}>
-                                    <TableCell>
-                                         <Checkbox
-                                            checked={selectedIds.includes(doc.id)}
-                                            onCheckedChange={(checked) => onSelectOne(doc.id, !!checked)}
-                                            aria-label="Select row"
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{doc.name}</TableCell>
-                                    <TableCell>{doc.type}</TableCell>
-                                    <TableCell>{doc.category}</TableCell>
-                                    <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" disabled={deletingId === doc.id}>
-                                                   {deletingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem asChild>
-                                                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
-                                                        <Eye className="mr-2 h-4 w-4" />Preview
-                                                    </a>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <a href={doc.url} download={doc.name} className="flex items-center cursor-pointer">
-                                                        <Download className="mr-2 h-4 w-4" />Download
-                                                    </a>
-                                                </DropdownMenuItem>
-                                                {canDelete && (
-                                                    <>
-                                                        <DropdownMenuSeparator />
-                                                        <DeleteDocumentMenuItem doc={doc} onDelete={onDelete} />
-                                                    </>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                        <TableCell colSpan={6} className="text-center h-24">No documents found.</TableCell>
+                    </TableRow>
+                ) : (
+                    documents.map((doc) => {
+                        const canDelete = allowedCategories.includes(doc.category) || userRole === 'CEO';
+                        return (
+                            <TableRow key={doc.id} data-state={selectedIds.includes(doc.id) && "selected"}>
+                                <TableCell>
+                                        <Checkbox
+                                        checked={selectedIds.includes(doc.id)}
+                                        onCheckedChange={(checked) => onSelectOne(doc.id, !!checked)}
+                                        aria-label="Select row"
+                                    />
+                                </TableCell>
+                                <TableCell className="font-medium">{doc.name}</TableCell>
+                                <TableCell>{doc.type}</TableCell>
+                                <TableCell>{doc.category}</TableCell>
+                                <TableCell>{format(doc.createdAt.toDate(), 'MMM d, yyyy')}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" disabled={deletingId === doc.id}>
+                                                {deletingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem asChild>
+                                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
+                                                    <Eye className="mr-2 h-4 w-4" />Preview
+                                                </a>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                <a href={doc.url} download={doc.name} className="flex items-center cursor-pointer">
+                                                    <Download className="mr-2 h-4 w-4" />Download
+                                                </a>
+                                            </DropdownMenuItem>
+                                            {canDelete && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DeleteDocumentMenuItem doc={doc} onDelete={onDelete} />
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })
+                )}
+            </TableBody>
+        </Table>
     );
 }
 

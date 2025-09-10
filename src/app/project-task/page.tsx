@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -221,7 +221,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   processingAction: string | null,
 }) {
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{project.name}</CardTitle>
         <div className="flex items-center gap-2">
@@ -258,7 +258,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
             <p className="text-sm text-muted-foreground px-4 py-2">No milestones in this project yet.</p>
         )}
       </CardContent>
-    </div>
+    </Card>
   )
 }
 
@@ -272,12 +272,14 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
+                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
+                      <AlertDialogTrigger asChild>
+                        <div>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Project
-                        </DropdownMenuItem>
-                    </AlertDialogTrigger>
+                        </div>
+                      </AlertDialogTrigger>
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
              <AlertDialogContent>
@@ -375,11 +377,13 @@ function MilestoneActions({ onDelete, isDeleting }: {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                     <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
-                           <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
-                        </DropdownMenuItem>
-                    </AlertDialogTrigger>
+                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
+                        <AlertDialogTrigger asChild>
+                            <div className="flex items-center">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
+                            </div>
+                        </AlertDialogTrigger>
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
              <AlertDialogContent>
@@ -435,11 +439,13 @@ function TaskActions({ onDelete, isDeleting }: { onDelete: () => void, isDeletin
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
-                             <Trash2 className="mr-2 h-4 w-4" /> Delete Task
-                        </DropdownMenuItem>
-                    </AlertDialogTrigger>
+                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
+                        <AlertDialogTrigger asChild>
+                            <div className="flex items-center">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Task
+                            </div>
+                        </AlertDialogTrigger>
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
             <AlertDialogContent>
