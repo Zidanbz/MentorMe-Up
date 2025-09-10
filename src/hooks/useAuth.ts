@@ -40,7 +40,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!profile) {
             // SCENARIO 1: NEW USER / FIRST TIME LOGIN IN THIS ENV
             // A workspaceId must be in local storage to create a new profile.
-            const activeWorkspaceId = localStorage.getItem('workspaceId');
+            let activeWorkspaceId = localStorage.getItem('workspaceId');
+            
+            // Fallback logic if localStorage is not set
+            if (!activeWorkspaceId) {
+                const emailDomain = firebaseUser.email?.split('@')[1];
+                if (emailDomain === 'mentorme.com') activeWorkspaceId = 'mentorme';
+                else if (emailDomain === 'howe.com') activeWorkspaceId = 'homeworkers';
+                else if (emailDomain === 'neo.com') activeWorkspaceId = 'neo';
+            }
+
             if (activeWorkspaceId) {
               profile = await createUserProfile(firebaseUser, activeWorkspaceId);
             } else {
