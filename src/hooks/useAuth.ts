@@ -38,11 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           let profile = await getUserProfile(firebaseUser.uid);
 
           if (!profile) {
-            // SCENARIO 1: NEW USER / FIRST TIME LOGIN IN THIS ENV
-            // A workspaceId must be in local storage to create a new profile.
             let activeWorkspaceId = localStorage.getItem('workspaceId');
             
-            // Fallback logic if localStorage is not set
             if (!activeWorkspaceId) {
                 const emailDomain = firebaseUser.email?.split('@')[1];
                 if (emailDomain === 'mentorme.com') activeWorkspaceId = 'mentorme';
@@ -53,19 +50,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (activeWorkspaceId) {
               profile = await createUserProfile(firebaseUser, activeWorkspaceId);
             } else {
-              // This can happen if a user is authenticated but lands on a page without a workspace selected.
-              // Forcing a logout is the safest path.
               throw new Error("No workspace selected for new user profile. Please log in again.");
             }
           }
           
-          // By this point, the user has a profile.
-          // Set user and profile state.
           setUser(firebaseUser);
           setUserProfile(profile);
 
-          // Now, set the local storage to match the user's actual workspace from their profile.
-          // This ensures consistency even if they used a different login page.
           localStorage.setItem('workspaceId', profile.workspaceId);
           if (profile.workspaceId === 'mentorme') {
             localStorage.setItem('workspaceName', 'MentorMe Up');
@@ -78,8 +69,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('workspaceIcon', 'Layers');
           }
 
-
-          // Redirect to dashboard if they are on a public page
           if (pathname.startsWith('/login') || pathname === '/') {
               router.push('/dashboard');
           }
@@ -98,13 +87,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
            if (pathname !== '/') {
              router.push('/');
            }
+        } finally {
+            setLoading(false);
         }
       } else {
-        // No user is signed in.
         setUser(null);
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
