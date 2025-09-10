@@ -6,7 +6,6 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 const documentsCollection = collection(db, 'documents');
 
 export const getDocuments = async (workspaceId: string): Promise<Document[]> => {
-    // We query the top-level collection and filter by workspaceId
     const q = query(documentsCollection, where('workspaceId', '==', workspaceId));
     const snapshot = await getDocs(q);
     const documents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
@@ -34,8 +33,7 @@ export const getDocuments = async (workspaceId: string): Promise<Document[]> => 
 export const addDocument = async (workspaceId: string, file: File, category: Document['category']): Promise<Document> => {
     if (!file) throw new Error("File is required.");
     
-    // The storage path should still be workspace-specific to avoid name collisions
-    const storagePath = `workspaces/${workspaceId}/documents/${Date.now()}_${file.name}`;
+    const storagePath = `documents/${Date.now()}_${file.name}`;
     const storageRef = ref(storage, storagePath);
     
     await uploadBytes(storageRef, file);
@@ -50,14 +48,14 @@ export const addDocument = async (workspaceId: string, file: File, category: Doc
         return 'Other';
     };
 
-    const docData = {
+    const docData: Omit<Document, 'id'> = {
         name: file.name,
         type: getFileType(file.name),
         category,
         createdAt: Timestamp.now(),
         url,
         storagePath: storagePath,
-        workspaceId: workspaceId, // Add workspaceId to the document data
+        workspaceId: workspaceId, // Always assign the current workspaceId
     };
 
     const docRef = await addDoc(documentsCollection, docData);
@@ -66,7 +64,6 @@ export const addDocument = async (workspaceId: string, file: File, category: Doc
 };
 
 export const deleteDocument = async (workspaceId: string, document: Document): Promise<void> => {
-    // workspaceId is not strictly needed to find the document if we have the id, but it's good for verification
     const docRef = doc(db, 'documents', document.id);
     await deleteDoc(docRef);
 
@@ -77,10 +74,8 @@ export const deleteDocument = async (workspaceId: string, document: Document): P
 export const deleteDocuments = async (workspaceId: string, documents: Document[]): Promise<void> => {
     if (documents.length === 0) return;
 
-    // Delete documents from Firestore in a batch
     const batch = writeBatch(db);
     documents.forEach(document => {
-        // We ensure we're only deleting documents that match the workspaceId, or are legacy docs in the 'mentorme' workspace
         if (document.workspaceId === workspaceId || (workspaceId === 'mentorme' && !document.workspaceId)) {
             const docRef = doc(documentsCollection, document.id);
             batch.delete(docRef);
@@ -88,7 +83,6 @@ export const deleteDocuments = async (workspaceId: string, documents: Document[]
     });
     await batch.commit();
 
-    // Delete files from Storage
     const deletePromises = documents.map(document => {
          if (document.workspaceId === workspaceId || (workspaceId === 'mentorme' && !document.workspaceId)) {
             const storageRef = ref(storage, document.storagePath);
