@@ -47,7 +47,7 @@ export default function TeamPage() {
     }, [fetchUsers]);
     
     const roles = ['All', ...Array.from(new Set(users.map(u => u.role)))];
-    const workspaces = ['All', ...Array.from(new Set(users.map(u => u.workspaceId)))];
+const workspaces = ['All', ...Array.from(new Set(users.map(u => u.workspaceId ?? 'unknown')))];
 
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -92,13 +92,13 @@ export default function TeamPage() {
                             <SelectTrigger className="w-full sm:w-[180px]">
                                 <SelectValue placeholder="Filter by workspace" />
                             </SelectTrigger>
-                            <SelectContent>
-                                {workspaces.map(ws => (
-                                    <SelectItem key={ws} value={ws}>
-                                        {workspaceDisplay[ws]?.name || 'All'}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
+<SelectContent>
+    {workspaces.map(ws => (
+        <SelectItem key={ws ?? 'unknown'} value={ws}>
+            {workspaceDisplay[ws ?? 'unknown']?.name || 'All'}
+        </SelectItem>
+    ))}
+</SelectContent>
                         </Select>
                     </div>
                 </div>

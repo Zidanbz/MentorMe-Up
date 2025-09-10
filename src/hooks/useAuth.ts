@@ -57,14 +57,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(firebaseUser);
           setUserProfile(profile);
 
-          localStorage.setItem('workspaceId', profile.workspaceId);
-          if (profile.workspaceId === 'mentorme') {
+          localStorage.setItem('workspaceId', profile.workspaceId ?? 'mentorme');
+          if ((profile.workspaceId ?? 'mentorme') === 'mentorme') {
             localStorage.setItem('workspaceName', 'MentorMe Up');
             localStorage.setItem('workspaceIcon', 'Layers3');
-          } else if (profile.workspaceId === 'homeworkers') {
+          } else if ((profile.workspaceId ?? 'mentorme') === 'homeworkers') {
             localStorage.setItem('workspaceName', 'Home Workers Up');
             localStorage.setItem('workspaceIcon', 'HomeIcon');
-          } else if (profile.workspaceId === 'neo') {
+          } else if ((profile.workspaceId ?? 'mentorme') === 'neo') {
             localStorage.setItem('workspaceName', 'Neo Up');
             localStorage.setItem('workspaceIcon', 'Layers');
           }
