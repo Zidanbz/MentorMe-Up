@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     Select,
@@ -56,7 +57,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
@@ -180,9 +180,10 @@ export default function DocumentsPage() {
         return documents.filter(doc => {
             const matchesCategory = activeTab === 'all' || doc.category === activeTab;
             const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesCategory && matchesSearch;
+            const hasAccess = userAllowedCategories.includes(doc.category) || userRole === 'CEO';
+            return matchesCategory && matchesSearch && hasAccess;
         });
-    }, [documents, activeTab, searchTerm]);
+    }, [documents, activeTab, searchTerm, userAllowedCategories, userRole]);
 
     const paginatedDocuments = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -273,26 +274,29 @@ export default function DocumentsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="flex-wrap h-auto">
                     <TabsTrigger value="all">All</TabsTrigger>
-                    {allCategories.map(cat => (
-                        <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
-                    ))}
+                    {userAllowedCategories.length > 0 ? (
+                        allCategories.filter(cat => userAllowedCategories.includes(cat) || userRole === 'CEO').map(cat => (
+                            <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
+                        ))
+                    ) : (
+                         <TabsTrigger value="none" disabled>No categories accessible</TabsTrigger>
+                    )}
                 </TabsList>
-                
-                <TabsContent value={activeTab} forceMount className="mt-4">
-                     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                        <DocumentTable 
-                            documents={paginatedDocuments} 
-                            onDelete={handleDeleteDocument} 
-                            loading={loading}
-                            userRole={userRole}
-                            allowedCategories={userAllowedCategories} 
-                            deletingId={deletingId}
-                            selectedIds={selectedIds}
-                            onSelectAll={handleSelectAll}
-                            onSelectOne={handleSelectOne}
-                        />
-                     </div>
-                </TabsContent>
+
+                <div className="mt-4 rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <DocumentTable 
+                        documents={paginatedDocuments} 
+                        onDelete={handleDeleteDocument} 
+                        loading={loading}
+                        userRole={userRole}
+                        allowedCategories={userAllowedCategories} 
+                        deletingId={deletingId}
+                        selectedIds={selectedIds}
+                        onSelectAll={handleSelectAll}
+                        onSelectOne={handleSelectOne}
+                    />
+                </div>
+
             </Tabs>
 
              <Pagination
@@ -309,7 +313,7 @@ export default function DocumentsPage() {
 type UploadDocumentDialogProps = {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onAddDocument: (data: DocumentFormData) => void;
+    onAddDocument: (data: DocumentFormData) => Promise<void>;
     allowedCategories: Document['category'][];
     isUploading: boolean;
 }
