@@ -7,7 +7,25 @@ const transactionsCollection = collection(db, 'transactions');
 export const getTransactions = async (workspaceId: string): Promise<Transaction[]> => {
     const q = query(transactionsCollection, where('workspaceId', '==', workspaceId), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+    const transactions = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+    
+    // For backward compatibility: if the workspace is 'mentorme', also fetch transactions without a workspaceId.
+    if (workspaceId === 'mentorme') {
+        const legacyQuery = query(transactionsCollection, where('workspaceId', '==', null), orderBy('date', 'desc'));
+        const legacySnapshot = await getDocs(legacyQuery);
+        const legacyTransactions = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+
+        // Merge and remove duplicates, giving precedence to transactions with workspaceId
+        const allTransactions = [...transactions, ...legacyTransactions];
+        const uniqueTransactions = allTransactions.filter((transaction, index, self) =>
+            index === self.findIndex((t) => t.id === transaction.id)
+        );
+         // Re-sort after merge
+        uniqueTransactions.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+        return uniqueTransactions;
+    }
+
+    return transactions;
 };
 
 export const addTransaction = async (workspaceId: string, transaction: Omit<Transaction, 'id' | 'date' | 'workspaceId'> & { date: Date }): Promise<Transaction> => {

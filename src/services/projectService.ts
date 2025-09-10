@@ -38,7 +38,25 @@ const convertDatesToTimestamps = (data: any): any => {
 export const getProjects = async (workspaceId: string): Promise<Project[]> => {
     const q = query(projectsCollection, where('workspaceId', '==', workspaceId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
+    const projects = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
+
+    // For backward compatibility: if the workspace is 'mentorme', also fetch projects without a workspaceId.
+    if (workspaceId === 'mentorme') {
+        const legacyQuery = query(projectsCollection, where('workspaceId', '==', null), orderBy('createdAt', 'desc'));
+        const legacySnapshot = await getDocs(legacyQuery);
+        const legacyProjects = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
+
+        // Merge and remove duplicates, giving precedence to projects with workspaceId
+        const allProjects = [...projects, ...legacyProjects];
+        const uniqueProjects = allProjects.filter((project, index, self) =>
+            index === self.findIndex((p) => p.id === project.id)
+        );
+        // Re-sort after merge
+        uniqueProjects.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        return uniqueProjects;
+    }
+
+    return projects;
 };
 
 export const addProject = async (workspaceId: string, project: Omit<Project, 'id' | 'createdAt' | 'milestones' | 'workspaceId'>): Promise<Project> => {
@@ -69,10 +87,13 @@ export const addMilestone = async (workspaceId: string, projectId: string, miles
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists() || projectDoc.data().workspaceId !== workspaceId) {
-            throw new Error("Project does not exist in this workspace!");
+        if (!projectDoc.exists()) {
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
+        if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
+            throw new Error("Project does not belong to this workspace!");
+        }
         const newMilestone: Milestone = {
             id: uuidv4(),
             name: milestone.name,
@@ -87,10 +108,13 @@ export const deleteMilestone = async (workspaceId: string, projectId: string, mi
      const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists() || projectDoc.data().workspaceId !== workspaceId) {
-            throw new Error("Project does not exist in this workspace!");
+        if (!projectDoc.exists()) {
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
+         if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
+            throw new Error("Project does not belong to this workspace!");
+        }
         const newMilestones = projectData.milestones.filter(m => m.id !== milestoneId);
         transaction.update(projectRef, { milestones: newMilestones });
     });
@@ -101,10 +125,13 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists() || projectDoc.data().workspaceId !== workspaceId) {
-            throw new Error("Project does not exist in this workspace!");
+        if (!projectDoc.exists()) {
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
+        if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
+            throw new Error("Project does not belong to this workspace!");
+        }
         
         const newTask: Task = {
             id: uuidv4(),
@@ -129,10 +156,13 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
     const projectRef = doc(db, 'projects', projectId);
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists() || projectDoc.data().workspaceId !== workspaceId) {
-            throw new Error("Project does not exist in this workspace!");
+        if (!projectDoc.exists()) {
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
+        if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
+            throw new Error("Project does not belong to this workspace!");
+        }
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
@@ -155,10 +185,13 @@ export const deleteTask = async (workspaceId: string, projectId: string, milesto
      const projectRef = doc(db, 'projects', projectId);
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
-        if (!projectDoc.exists() || projectDoc.data().workspaceId !== workspaceId) {
-            throw new Error("Project does not exist in this workspace!");
+        if (!projectDoc.exists()) {
+            throw new Error("Project does not exist!");
         }
         const projectData = projectDoc.data() as Project;
+        if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
+            throw new Error("Project does not belong to this workspace!");
+        }
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {

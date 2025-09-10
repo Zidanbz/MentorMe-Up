@@ -3,14 +3,31 @@ import type { Document } from '@/types';
 import { collection, addDoc, getDocs, doc, deleteDoc, Timestamp, query, orderBy, where, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-// This service now points to the top-level 'documents' collection
 const documentsCollection = collection(db, 'documents');
 
 export const getDocuments = async (workspaceId: string): Promise<Document[]> => {
     // We query the top-level collection and filter by workspaceId
     const q = query(documentsCollection, where('workspaceId', '==', workspaceId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
+    const documents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
+
+    // For backward compatibility: if the workspace is 'mentorme', also fetch documents without a workspaceId.
+    if (workspaceId === 'mentorme') {
+        const legacyQuery = query(documentsCollection, where('workspaceId', '==', null), orderBy('createdAt', 'desc'));
+        const legacySnapshot = await getDocs(legacyQuery);
+        const legacyDocuments = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
+        
+        // Merge and remove duplicates, giving precedence to documents with workspaceId
+        const allDocuments = [...documents, ...legacyDocuments];
+        const uniqueDocuments = allDocuments.filter((doc, index, self) =>
+            index === self.findIndex((d) => d.id === doc.id)
+        );
+        // Re-sort after merge
+        uniqueDocuments.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        return uniqueDocuments;
+    }
+
+    return documents;
 };
 
 export const addDocument = async (workspaceId: string, file: File, category: Document['category']): Promise<Document> => {
@@ -62,8 +79,8 @@ export const deleteDocuments = async (workspaceId: string, documents: Document[]
     // Delete documents from Firestore in a batch
     const batch = writeBatch(db);
     documents.forEach(document => {
-        // We ensure we're only deleting documents that match the workspaceId
-        if (document.workspaceId === workspaceId) {
+        // We ensure we're only deleting documents that match the workspaceId, or are legacy docs in the 'mentorme' workspace
+        if (document.workspaceId === workspaceId || (workspaceId === 'mentorme' && !document.workspaceId)) {
             const docRef = doc(documentsCollection, document.id);
             batch.delete(docRef);
         }
@@ -72,7 +89,7 @@ export const deleteDocuments = async (workspaceId: string, documents: Document[]
 
     // Delete files from Storage
     const deletePromises = documents.map(document => {
-         if (document.workspaceId === workspaceId) {
+         if (document.workspaceId === workspaceId || (workspaceId === 'mentorme' && !document.workspaceId)) {
             const storageRef = ref(storage, document.storagePath);
             return deleteObject(storageRef);
          }

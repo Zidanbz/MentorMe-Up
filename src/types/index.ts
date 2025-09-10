@@ -8,7 +8,7 @@ export type Document = {
   createdAt: Timestamp;
   url: string;
   storagePath: string;
-  workspaceId: string;
+  workspaceId: string | null; // Can be null for legacy data
 };
 
 export type Transaction = {
@@ -18,7 +18,7 @@ export type Transaction = {
   category: 'Salary' | 'Marketing' | 'Investment' | 'Operations' | 'Other';
   description: string;
   date: Timestamp;
-  workspaceId: string;
+  workspaceId: string | null; // Can be null for legacy data
 };
 
 export type RecentActivity = {
@@ -51,7 +51,7 @@ export type Project = {
   name: string;
   milestones: Milestone[];
   createdAt: Timestamp;
-  workspaceId: string;
+  workspaceId: string | null; // Can be null for legacy data
 };
 
 export type Grievance = {
