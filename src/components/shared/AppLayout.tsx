@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListTodo, ShieldAlert, Star, Home as HomeIcon, Layers } from 'lucide-react';
+import { ListTodo, ShieldAlert, Star, Home as HomeIcon, Layers, Users as TeamIcon } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -52,21 +52,21 @@ const navItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
+  { href: '/team', label: 'Team', icon: TeamIcon },
   { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert, notification: true },
   { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user, loading, userProfile } = useAuth();
   const router = useRouter();
   const [showNotification, setShowNotification] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('mentorme Up');
   const [workspaceIcon, setWorkspaceIcon] = useState(<Layers3 className="h-6 w-6" />);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  const isCEO = user?.email === 'ceo@mentorme.com';
-  const userEmail = user?.email || '';
+  const isCEO = userProfile?.role === 'CEO';
   
   useEffect(() => {
     const name = localStorage.getItem('workspaceName') || 'mentorme Up';
@@ -99,8 +99,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         }
         checkGrievances();
         
-        // Optional: Check periodically
-        const interval = setInterval(checkGrievances, 60000); // every minute
+        const interval = setInterval(checkGrievances, 60000); 
         return () => clearInterval(interval);
     } else {
       setShowNotification(false);
@@ -129,7 +128,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => {
-              const isAllowed = !item.allowedRoles || item.allowedRoles.includes(userEmail);
+              const isAllowed = !item.allowedRoles || (userProfile?.role && item.allowedRoles.includes(userProfile.role));
               if (!isAllowed) return null;
 
               return (
@@ -154,7 +153,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          {/* Settings button removed from here */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
