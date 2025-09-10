@@ -56,6 +56,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { getDocuments, addDocument, deleteDocument, deleteDocuments } from '@/services/documentService';
