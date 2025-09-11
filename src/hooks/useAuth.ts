@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("Current pathname in useAuth:", pathname); // Added log for pathname
       if (firebaseUser) {
         setLoading(true);
         try {
@@ -68,9 +69,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('workspaceName', 'Neo Up');
             localStorage.setItem('workspaceIcon', 'Layers');
           }
-
+  
           if (pathname.startsWith('/login') || pathname === '/') {
-              router.push('/dashboard');
+              // Use router.replace to avoid back navigation to login
+              router.replace('/dashboard');
           }
 
         } catch (error) {

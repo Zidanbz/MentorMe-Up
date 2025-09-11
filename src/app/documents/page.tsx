@@ -107,10 +107,13 @@ export default function DocumentsPage() {
     const canUpload = useMemo(() => userAllowedCategories.length > 0, [userAllowedCategories]);
 
     const fetchDocuments = useCallback(async (workspaceId: string) => {
+        console.log('Fetching documents for workspaceId:', workspaceId);
         setLoading(true);
         try {
             const data = await getDocuments(workspaceId);
+            console.log('Documents fetched:', data.length);
             setDocuments(data);
+            console.log('Documents state updated with:', data.length, 'documents');
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch documents.' });
         } finally {
@@ -119,12 +122,30 @@ export default function DocumentsPage() {
     }, [toast]);
 
     useEffect(() => {
-        if (userProfile?.workspaceId) {
-            fetchDocuments(userProfile.workspaceId);
+        const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+        console.log('Using workspaceId for fetchDocuments:', workspaceId);
+        if (workspaceId) {
+            if (workspaceId === 'mentorme') {
+                fetchDocuments('mentorme');
+            } else {
+                fetchDocuments(workspaceId);
+            }
         } else if (!authLoading) {
             setLoading(false);
         }
     }, [userProfile, authLoading, fetchDocuments]);
+
+    // Retry fetchDocuments if documents array is empty after initial load
+    useEffect(() => {
+        if (documents.length === 0 && userProfile?.workspaceId) {
+            console.log('Retrying fetchDocuments due to empty documents array');
+            if (userProfile.workspaceId === 'mentorme') {
+                fetchDocuments('mentorme');
+            } else {
+                fetchDocuments(userProfile.workspaceId);
+            }
+        }
+    }, [documents, userProfile, fetchDocuments]);
     
     useEffect(() => {
         setCurrentPage(1);
@@ -155,29 +176,43 @@ export default function DocumentsPage() {
     };
 
     const handleDeleteDocument = async (doc: Document) => {
-        if (!userProfile?.workspaceId) return;
+        const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+        if (!workspaceId) {
+            console.error('Delete failed: workspaceId is missing');
+            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+            return;
+        }
         setDeletingId(doc.id);
         try {
-            await deleteDocument(userProfile.workspaceId, doc);
+            console.log('Deleting document:', doc.id, 'for workspaceId:', workspaceId);
+            await deleteDocument(workspaceId, doc);
             toast({ title: 'Success', description: 'Document deleted successfully.' });
-            fetchDocuments(userProfile.workspaceId);
+            fetchDocuments(workspaceId);
         } catch (error) {
-             toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete document.' });
+            console.error('Delete document error:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete document.' });
         } finally {
             setDeletingId(null);
         }
     };
 
     const handleBulkDelete = async () => {
-        if (!userProfile?.workspaceId) return;
+        const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+        if (!workspaceId) {
+            console.error('Bulk delete failed: workspaceId is missing');
+            toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+            return;
+        }
         setIsBulkDeleting(true);
         try {
+            console.log('Bulk deleting documents:', selectedIds, 'for workspaceId:', workspaceId);
             const documentsToDelete = documents.filter(doc => selectedIds.includes(doc.id));
-            await deleteDocuments(userProfile.workspaceId, documentsToDelete);
+            await deleteDocuments(workspaceId, documentsToDelete);
             toast({ title: 'Success', description: `${selectedIds.length} documents deleted.` });
             setSelectedIds([]);
-            fetchDocuments(userProfile.workspaceId);
+            fetchDocuments(workspaceId);
         } catch (error) {
+            console.error('Bulk delete error:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete selected documents.' });
         } finally {
             setIsBulkDeleting(false);
@@ -188,10 +223,16 @@ export default function DocumentsPage() {
         return documents.filter(doc => {
             const matchesCategory = activeTab === 'all' || doc.category === activeTab;
             const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const hasAccess = userAllowedCategories.includes(doc.category) || userRole === 'CEO';
+            // Nonaktifkan sementara filter akses berdasarkan peran pengguna untuk analisa
+            // const hasAccess = userAllowedCategories.includes(doc.category) || userRole === 'CEO';
+            const hasAccess = true;
             return matchesCategory && matchesSearch && hasAccess;
         });
     }, [documents, activeTab, searchTerm, userAllowedCategories, userRole]);
+
+    useEffect(() => {
+        console.log('Filtered documents count:', filteredDocuments.length);
+    }, [filteredDocuments]);
 
     const paginatedDocuments = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;

@@ -62,6 +62,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '@/services/transactionService';
 import { useAuth } from '@/hooks/useAuth';
@@ -105,8 +106,14 @@ export default function CashFlowPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (userProfile?.workspaceId) {
-        fetchTransactions(userProfile.workspaceId);
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    console.log('Using workspaceId for fetchTransactions:', workspaceId);
+    if (workspaceId) {
+        if (workspaceId === 'mentorme') {
+            fetchTransactions('mentorme');
+        } else {
+            fetchTransactions(workspaceId);
+        }
     } else if (!authLoading) {
       // If auth is done loading and there's still no workspaceId, it means something is wrong.
       // We can stop loading, and the UI will show an appropriate message.

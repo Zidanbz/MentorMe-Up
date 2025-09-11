@@ -54,6 +54,7 @@ export function LoginForm({
       // This form's only job is to authenticate with Firebase.
       await signInWithEmailAndPassword(auth, values.email, values.password);
       // On success, the listener in useAuth will redirect.
+      router.replace('/dashboard'); // Added explicit redirect after login
     } catch (error: any) {
         if (error instanceof FirebaseError) {
           if (error.code === 'auth/user-not-found') {

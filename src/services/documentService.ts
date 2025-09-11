@@ -10,23 +10,35 @@ export const getDocuments = async (workspaceId: string): Promise<Document[]> => 
     const snapshot = await getDocs(q);
     const documents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
 
+    console.log(`Fetched ${documents.length} documents for workspaceId: ${workspaceId}`);
+
     // For backward compatibility: if the workspace is 'mentorme', also fetch documents without a workspaceId.
     if (workspaceId === 'mentorme') {
         const legacyQuery = query(documentsCollection, where('workspaceId', '==', null));
         const legacySnapshot = await getDocs(legacyQuery);
         const legacyDocuments = legacySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Document));
         
+        console.log(`Fetched ${legacyDocuments.length} legacy documents for workspaceId: null`);
+
         // Merge and remove duplicates, giving precedence to documents with workspaceId
         const allDocuments = [...documents, ...legacyDocuments];
         const uniqueDocuments = allDocuments.filter((doc, index, self) =>
             index === self.findIndex((d) => d.id === doc.id)
         );
-        // Re-sort after merge
-        uniqueDocuments.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        // Re-sort after merge with safe check for createdAt
+        uniqueDocuments.sort((a, b) => {
+            const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return bTime - aTime;
+        });
         return uniqueDocuments;
     }
     
-    documents.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    documents.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return bTime - aTime;
+    });
     return documents;
 };
 
