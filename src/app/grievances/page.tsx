@@ -30,7 +30,7 @@ import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Grievance, GrievanceClientData } from '@/types';
-import { getGrievances, addGrievance, markGrievancesAsSeen } from '@/services/grievanceService';
+import { getGrievances, addGrievance, markGrievancesAsSeen, deleteGrievances } from '@/services/grievanceService';
 import { format } from 'date-fns';
 
 const grievanceSchema = z.object({
@@ -72,7 +72,7 @@ function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: st
         file: fileData,
       };
 
-      await addGrievance(workspaceId, grievanceData, { userId: user.uid, userEmail: user.email });
+      await addGrievance(workspaceId, grievanceData, { userId: user.uid, userEmail: user.email ?? '' });
       toast({ title: 'Success', description: 'Your grievance has been submitted.' });
       setIsDialogOpen(false);
       reset();
@@ -131,14 +131,20 @@ function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: st
 }
 
 
+// 'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+
 export default function GrievancesPage() {
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { toast } = useToast();
   const { user, userProfile, loading: authLoading } = useAuth();
   const isCEO = userProfile?.role === 'CEO';
 
   const fetchGrievances = useCallback(async (workspaceId: string) => {
+    console.log('fetchGrievances called with:', { workspaceId, user, userProfile });
     if (!user?.uid || !user?.email) {
         setLoading(false);
         return;
@@ -147,14 +153,41 @@ export default function GrievancesPage() {
     setLoading(true);
     try {
       const data = await getGrievances(workspaceId, { userId: user.uid, userEmail: user.email, userRole: userProfile?.role || 'Member' });
+      if (!data || !Array.isArray(data)) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Invalid data received for grievances.' });
+        setGrievances([]);
+        return;
+      }
       data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setGrievances(data);
     } catch (error) {
+      console.error('Error fetching grievances:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
+      setGrievances([]);
     } finally {
       setLoading(false);
     }
   }, [toast, user, userProfile?.role]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const deleteSelected = async () => {
+    if (!userProfile?.workspaceId) return;
+    if (selectedIds.length === 0) {
+      toast({ title: 'No selection', description: 'Please select grievances to delete.' });
+      return;
+    }
+    try {
+      await deleteGrievances(userProfile.workspaceId, selectedIds);
+      toast({ title: 'Success', description: `${selectedIds.length} grievances deleted.` });
+      setSelectedIds([]);
+      fetchGrievances(userProfile.workspaceId);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete grievances.' });
+    }
+  };
 
   useEffect(() => {
     if (userProfile?.workspaceId && user) {
@@ -190,6 +223,9 @@ export default function GrievancesPage() {
                 onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)} 
              />
            }
+           <Button variant="destructive" onClick={deleteSelected} disabled={selectedIds.length === 0}>
+             Delete Selected
+           </Button>
         </div>
         
         {loading ? (
@@ -206,12 +242,20 @@ export default function GrievancesPage() {
             <div className="flex flex-col gap-4">
                 {grievances.map(g => (
                     <Card key={g.id}>
-                        <CardHeader>
+                        <CardHeader className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(g.id)}
+                            onChange={() => toggleSelect(g.id)}
+                            className="h-4 w-4"
+                          />
+                          <div className="flex-1">
                             <CardTitle>{g.subject}</CardTitle>
                             <CardDescription>
                                 {isCEO && `From: ${g.userEmail} | `}
                                 Submitted on {format(g.createdAt, 'MMM d, yyyy, HH:mm')}
                             </CardDescription>
+                          </div>
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>

@@ -9,6 +9,8 @@ export interface ProjectTask {
   dueDate: any; // Firebase Timestamp
   createdAt: any;
   updatedAt: any;
+  completionDate?: any; // Firebase Timestamp
+  issues?: string;
 }
 
 export const getProjectTasks = async (workspaceId: string): Promise<ProjectTask[]> => {

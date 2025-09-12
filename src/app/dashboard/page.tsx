@@ -90,8 +90,9 @@ export default function DashboardPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (userProfile?.workspaceId) {
-      fetchData(userProfile.workspaceId);
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (workspaceId) {
+      fetchData(workspaceId);
     } else if (!authLoading) {
       setLoading(false);
     }

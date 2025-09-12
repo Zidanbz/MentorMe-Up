@@ -83,7 +83,7 @@ export const addGrievance = async (
 
   const newGrievance: Omit<Grievance, 'id'> = {
     userId: user.userId,
-    userEmail: user.email,
+    userEmail: user.userEmail,
     subject: data.subject,
     description: data.description,
     createdAt: Timestamp.now(),
@@ -118,6 +118,18 @@ export const markGrievancesAsSeen = async (workspaceId: string): Promise<void> =
     const batch = writeBatch(db);
     snapshot.docs.forEach(doc => {
         batch.update(doc.ref, { seenByCEO: true });
+    });
+
+    await batch.commit();
+};
+
+export const deleteGrievances = async (workspaceId: string, grievanceIds: string[]): Promise<void> => {
+    if (grievanceIds.length === 0) return;
+
+    const batch = writeBatch(db);
+    grievanceIds.forEach(id => {
+        const docRef = doc(grievanceCollection, id);
+        batch.delete(docRef);
     });
 
     await batch.commit();

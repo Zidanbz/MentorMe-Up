@@ -52,7 +52,6 @@ const navItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
-  { href: '/team', label: 'Team', icon: TeamIcon },
   { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert, notification: true },
   { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
@@ -114,18 +113,33 @@ export function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
+  const getWorkspaceClass = (workspaceId: string | null) => {
+    switch (workspaceId) {
+      case 'mentorme':
+        return 'workspace-mentorme';
+      case 'homeworkers':
+        return 'workspace-homeworkers';
+      case 'neo':
+        return 'workspace-neo';
+      default:
+        return '';
+    }
+  };
+
+  const workspaceClass = getWorkspaceClass(workspaceId);
+
   return (
     <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader>
+      <Sidebar className={workspaceClass}>
+        <SidebarHeader className={`${workspaceId === 'mentorme' ? 'bg-sidebar-mentorme' : workspaceId === 'homeworkers' ? 'bg-sidebar-homeworkers' : workspaceId === 'neo' ? 'bg-sidebar-neo' : 'bg-gradient-to-br from-sidebar-primary to-sidebar-accent'}`}>
           <div className="flex items-center gap-3 p-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm text-sidebar-primary-foreground border border-white/30">
               {workspaceIcon}
             </div>
-            <span className="text-lg font-semibold">{workspaceName}</span>
+            <span className="text-lg font-semibold text-sidebar-primary-foreground drop-shadow-sm">{workspaceName}</span>
           </div>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="bg-gradient-to-b from-sidebar-background/60 to-sidebar-background/40">
           <SidebarMenu>
             {navItems.map((item) => {
               const isAllowed = !item.allowedRoles || (userProfile?.role && item.allowedRoles.includes(userProfile.role));
@@ -156,7 +170,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 items-center justify-between border-b bg-card px-4">
+        <header className={`flex h-14 items-center justify-between border-b bg-gradient-to-r from-card via-card to-card/95 px-4 ${workspaceClass}`}>
           <SidebarTrigger />
           <UserMenu />
         </header>
