@@ -11,6 +11,8 @@ import {
   Timestamp,
   writeBatch,
   limit,
+  startAfter,
+  doc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -52,6 +54,70 @@ export const getGrievances = async (workspaceId: string, user: GetGrievancesPara
       createdAt: (data.createdAt as Timestamp).toDate(),
     } as Grievance;
   });
+};
+
+export const getGrievancesPaginated = async (
+  workspaceId: string,
+  user: GetGrievancesParams,
+  pageSize: number,
+  startAfterDoc?: any
+): Promise<{ grievances: Grievance[]; lastVisible: any | null }> => {
+  if (!user || !user.userId || !user.userEmail) {
+    throw new Error('User authentication details are incomplete.');
+  }
+
+  let q;
+  if (user.userRole === 'CEO') {
+    if (startAfterDoc) {
+      q = query(
+        grievanceCollection,
+        where('workspaceId', '==', workspaceId),
+        orderBy('createdAt', 'desc'),
+        startAfter(startAfterDoc),
+        limit(pageSize)
+      );
+    } else {
+      q = query(
+        grievanceCollection,
+        where('workspaceId', '==', workspaceId),
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+      );
+    }
+  } else {
+    if (startAfterDoc) {
+      q = query(
+        grievanceCollection,
+        where('userId', '==', user.userId),
+        where('workspaceId', '==', workspaceId),
+        orderBy('createdAt', 'desc'),
+        startAfter(startAfterDoc),
+        limit(pageSize)
+      );
+    } else {
+      q = query(
+        grievanceCollection,
+        where('userId', '==', user.userId),
+        where('workspaceId', '==', workspaceId),
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+      );
+    }
+  }
+
+  const snapshot = await getDocs(q);
+  const grievances = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: (data.createdAt as Timestamp).toDate(),
+    } as Grievance;
+  });
+
+  const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+
+  return { grievances, lastVisible };
 };
 
 export const addGrievance = async (

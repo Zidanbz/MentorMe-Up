@@ -2,7 +2,6 @@
 
 import { AppLayout } from '@/components/shared/AppLayout';
 import { useState, useEffect, useCallback } from 'react';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getProjects, addTask, updateTask, deleteTask, addProject, addMilestone, deleteProject, deleteMilestone } from '@/services/projectService';
 import { updateProjectTask } from '@/services/projectTaskService';
@@ -16,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { format } from 'date-fns';
 import { Loader2, MoreVertical, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,9 +66,9 @@ export default function ProjectTaskPage() {
 
   // New states for milestone dialog
   const [isMilestoneDialogOpen, setIsMilestoneDialogOpen] = useState(false);
+  const [milestoneProjectId, setMilestoneProjectId] = useState<string | null>(null);
   const [newMilestoneName, setNewMilestoneName] = useState('');
   const [isSubmittingMilestone, setIsSubmittingMilestone] = useState(false);
-  const [milestoneProjectId, setMilestoneProjectId] = useState<string | null>(null);
 
   // States for delete operations
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
@@ -104,6 +104,102 @@ export default function ProjectTaskPage() {
     }
   }, [userProfile, authLoading, fetchProjects]);
 
+  // New handlers for project dialog
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+
+  const openNewProjectDialog = () => {
+    setIsProjectDialogOpen(true);
+  };
+
+  const handleAddProject = async (projectName: string) => {
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (!workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+      return;
+    }
+    try {
+      await addProject(workspaceId, { name: projectName });
+      await fetchProjects(workspaceId);
+      setIsProjectDialogOpen(false);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add project.' });
+    }
+  };
+
+  const handleAddMilestone = async (milestoneName: string) => {
+    if (!milestoneProjectId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Project not selected for milestone.' });
+      return;
+    }
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (!workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+      return;
+    }
+    setIsSubmittingMilestone(true);
+    try {
+      await addMilestone(workspaceId, milestoneProjectId, { name: milestoneName });
+      await fetchProjects(workspaceId);
+      setIsMilestoneDialogOpen(false);
+      setNewMilestoneName('');
+      setMilestoneProjectId(null);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add milestone.' });
+    } finally {
+      setIsSubmittingMilestone(false);
+    }
+  };
+
+  const openDeleteProjectDialog = (project: any) => {
+    setProjectToDelete(project);
+    setIsDeleteProjectDialogOpen(true);
+  };
+
+  const openDeleteMilestoneDialog = (projectId: string, milestone: any) => {
+    setMilestoneToDelete({ ...milestone, projectId });
+    setIsDeleteMilestoneDialogOpen(true);
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (!workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+      return;
+    }
+    setDeletingProjectId(projectId);
+    try {
+      await deleteProject(workspaceId, projectId);
+      await fetchProjects(workspaceId);
+      setIsDeleteProjectDialogOpen(false);
+      setProjectToDelete(null);
+      toast({ title: 'Success', description: 'Project deleted successfully.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete project.' });
+    } finally {
+      setDeletingProjectId(null);
+    }
+  };
+
+  const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (!workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+      return;
+    }
+    setDeletingMilestoneId(milestoneId);
+    try {
+      await deleteMilestone(workspaceId, projectId, milestoneId);
+      await fetchProjects(workspaceId);
+      setIsDeleteMilestoneDialogOpen(false);
+      setMilestoneToDelete(null);
+      toast({ title: 'Success', description: 'Milestone deleted successfully.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete milestone.' });
+    } finally {
+      setDeletingMilestoneId(null);
+    }
+  };
+
   const openNewTaskDialog = (projectId: string, milestoneId: string) => {
     setSelectedProjectId(projectId);
     setSelectedMilestoneId(milestoneId);
@@ -116,42 +212,6 @@ export default function ProjectTaskPage() {
     setSelectedMilestoneId(milestoneId);
     setEditingTask(task);
     setIsDialogOpen(true);
-  };
-
-  // Handler for checkbox click
-  const onTaskCheckboxClick = (projectId: string, milestoneId: string, task: any) => {
-    setCompleteProjectId(projectId);
-    setCompleteMilestoneId(milestoneId);
-    setCompleteTask(task);
-    setCompletionIssues('');
-    setCompletionDate(format(new Date(), 'yyyy-MM-dd'));
-    setIsCompleteDialogOpen(true);
-  };
-
-  // Handler for completion modal submit
-  const handleCompleteSubmit = async () => {
-    if (!completeTask || !completeProjectId || !completeMilestoneId) return;
-    setIsSubmittingCompletion(true);
-    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
-    if (!workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
-      setIsSubmittingCompletion(false);
-      return;
-    }
-      try {
-        await updateProjectTask(workspaceId, completeTask.id, {
-          status: 'Completed',
-          issues: completionIssues,
-          completionDate: new Date(completionDate),
-        });
-        await fetchProjects(workspaceId);
-        setIsCompleteDialogOpen(false);
-        setCompleteTask(null);
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task completion.' });
-      } finally {
-        setIsSubmittingCompletion(false);
-      }
   };
 
   const handleAddTask = async (data: TaskFormData) => {
@@ -210,6 +270,21 @@ export default function ProjectTaskPage() {
     }
   };
 
+  const onTaskCheckboxClick = async (projectId: string, milestoneId: string, task: any) => {
+    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
+    if (!workspaceId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
+      return;
+    }
+    const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
+    try {
+      await updateProjectTask(workspaceId, projectId, milestoneId, task.id, { status: newStatus });
+      await fetchProjects(workspaceId);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task status.' });
+    }
+  };
+
   if (authLoading) {
     return (
       <AppLayout>
@@ -219,101 +294,6 @@ export default function ProjectTaskPage() {
       </AppLayout>
     );
   }
-
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-
-  const openNewProjectDialog = () => {
-    setIsProjectDialogOpen(true);
-  };
-
-  const handleAddProject = async (projectName: string) => {
-    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
-    if (!workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
-      return;
-    }
-    try {
-      await addProject(workspaceId, { name: projectName });
-      await fetchProjects(workspaceId);
-      setIsProjectDialogOpen(false);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add project.' });
-    }
-  };
-
-  const handleAddMilestone = async (milestoneName: string) => {
-    if (!milestoneProjectId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Project not selected for milestone.' });
-      return;
-    }
-    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
-    if (!workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
-      return;
-    }
-    setIsSubmittingMilestone(true);
-    try {
-      await addMilestone(workspaceId, milestoneProjectId, { name: milestoneName });
-      await fetchProjects(workspaceId);
-      setIsMilestoneDialogOpen(false);
-      setNewMilestoneName('');
-      setMilestoneProjectId(null);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add milestone.' });
-    } finally {
-      setIsSubmittingMilestone(false);
-    }
-  };
-
-  const handleDeleteProject = async (projectId: string) => {
-    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
-    if (!workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
-      return;
-    }
-    setDeletingProjectId(projectId);
-    try {
-      await deleteProject(workspaceId, projectId);
-      await fetchProjects(workspaceId);
-      setIsDeleteProjectDialogOpen(false);
-      setProjectToDelete(null);
-      toast({ title: 'Success', description: 'Project deleted successfully.' });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete project.' });
-    } finally {
-      setDeletingProjectId(null);
-    }
-  };
-
-  const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
-    const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
-    if (!workspaceId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
-      return;
-    }
-    setDeletingMilestoneId(milestoneId);
-    try {
-      await deleteMilestone(workspaceId, projectId, milestoneId);
-      await fetchProjects(workspaceId);
-      setIsDeleteMilestoneDialogOpen(false);
-      setMilestoneToDelete(null);
-      toast({ title: 'Success', description: 'Milestone deleted successfully.' });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete milestone.' });
-    } finally {
-      setDeletingMilestoneId(null);
-    }
-  };
-
-  const openDeleteProjectDialog = (project: any) => {
-    setProjectToDelete(project);
-    setIsDeleteProjectDialogOpen(true);
-  };
-
-  const openDeleteMilestoneDialog = (projectId: string, milestone: any) => {
-    setMilestoneToDelete({ ...milestone, projectId });
-    setIsDeleteMilestoneDialogOpen(true);
-  };
 
   return (
     <AppLayout>
@@ -378,44 +358,44 @@ export default function ProjectTaskPage() {
                     </div>
                     {milestone.tasks && milestone.tasks.length > 0 ? (
                       <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{/* Checkbox column */}</TableHead>
-                          <TableHead>Task Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Due Date</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {milestone.tasks.map((task: any) => (
-                          <TableRow key={task.id}>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                checked={task.status === 'Completed'}
-                                onChange={() => onTaskCheckboxClick(project.id, milestone.id, task)}
-                              />
-                            </TableCell>
-                            <TableCell>{task.name}</TableCell>
-                            <TableCell>{task.description || '-'}</TableCell>
-                            <TableCell>{task.dueDate ? (typeof task.dueDate.toDate === 'function' ? format(task.dueDate.toDate(), 'MMM d, yyyy') : format(new Date(task.dueDate), 'MMM d, yyyy')) : '-'}</TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" disabled={deletingTaskId === task.id}>
-                                    {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => openEditTaskDialog(project.id, milestone.id, task)}>Edit</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteTask(project.id, milestone.id, task.id)}>Delete</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{/* Checkbox column */}</TableHead>
+                            <TableHead>Task Name</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Due Date</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
+                        </TableHeader>
+                        <TableBody>
+                          {milestone.tasks.map((task: any) => (
+                            <TableRow key={task.id}>
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  checked={task.status === 'Completed'}
+                                  onChange={() => onTaskCheckboxClick(project.id, milestone.id, task)}
+                                />
+                              </TableCell>
+                              <TableCell>{task.name}</TableCell>
+                              <TableCell>{task.description || '-'}</TableCell>
+                              <TableCell>{task.dueDate ? (typeof task.dueDate.toDate === 'function' ? format(task.dueDate.toDate(), 'MMM d, yyyy') : format(new Date(task.dueDate), 'MMM d, yyyy')) : '-'}</TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" disabled={deletingTaskId === task.id}>
+                                      {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEditTaskDialog(project.id, milestone.id, task)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteTask(project.id, milestone.id, task.id)}>Delete</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
                       </Table>
                     ) : (
                       <p className="italic text-sm text-muted-foreground">No tasks found.</p>
@@ -440,56 +420,13 @@ export default function ProjectTaskPage() {
           onUpdateTask={handleUpdateTask}
           editingTask={editingTask}
         />
+
         <ProjectDialog
           isOpen={isProjectDialogOpen}
           setIsOpen={setIsProjectDialogOpen}
           onAddProject={handleAddProject}
         />
-        <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Complete Task</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <label className="block mb-2 font-medium">Kendala yang dialami</label>
-              <textarea
-                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                value={completionIssues}
-                onChange={(e) => setCompletionIssues(e.target.value)}
-                rows={4}
-                disabled={isSubmittingCompletion}
-              />
-            </div>
-            <div className="py-4">
-              <label className="block mb-2 font-medium">Tanggal selesai</label>
-              <input
-                type="date"
-                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                value={completionDate}
-                onChange={(e) => setCompletionDate(e.target.value)}
-                disabled={isSubmittingCompletion}
-              />
-            </div>
-            <DialogFooter>
-              <button
-                type="button"
-                className="mr-2 rounded border border-gray-300 px-4 py-2 hover:bg-gray-100"
-                onClick={() => setIsCompleteDialogOpen(false)}
-                disabled={isSubmittingCompletion}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:opacity-50"
-                onClick={handleCompleteSubmit}
-                disabled={isSubmittingCompletion}
-              >
-                {isSubmittingCompletion ? 'Saving...' : 'Save'}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
         <MilestoneDialog
           isOpen={isMilestoneDialogOpen}
           setIsOpen={setIsMilestoneDialogOpen}
@@ -497,141 +434,23 @@ export default function ProjectTaskPage() {
           isSubmitting={isSubmittingMilestone}
         />
 
-        {/* Delete Project Dialog */}
-        <Dialog open={isDeleteProjectDialogOpen} onOpenChange={setIsDeleteProjectDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Delete Project</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p>Are you sure you want to delete the project "{projectToDelete?.name}"? This action cannot be undone and will also delete all associated milestones and tasks.</p>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsDeleteProjectDialogOpen(false)}
-                disabled={deletingProjectId === projectToDelete?.id}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => projectToDelete && handleDeleteProject(projectToDelete.id)}
-                disabled={deletingProjectId === projectToDelete?.id}
-              >
-                {deletingProjectId === projectToDelete?.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete Project'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteProjectDialog
+          isOpen={isDeleteProjectDialogOpen}
+          setIsOpen={setIsDeleteProjectDialogOpen}
+          project={projectToDelete}
+          onDelete={handleDeleteProject}
+          isDeleting={!!deletingProjectId}
+        />
 
-        {/* Delete Milestone Dialog */}
-        <Dialog open={isDeleteMilestoneDialogOpen} onOpenChange={setIsDeleteMilestoneDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Delete Milestone</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p>Are you sure you want to delete the milestone "{milestoneToDelete?.name}"? This action cannot be undone and will also delete all associated tasks.</p>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setIsDeleteMilestoneDialogOpen(false)}
-                disabled={deletingMilestoneId === milestoneToDelete?.id}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => milestoneToDelete && handleDeleteMilestone(milestoneToDelete.projectId, milestoneToDelete.id)}
-                disabled={deletingMilestoneId === milestoneToDelete?.id}
-              >
-                {deletingMilestoneId === milestoneToDelete?.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete Milestone'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteMilestoneDialog
+          isOpen={isDeleteMilestoneDialogOpen}
+          setIsOpen={setIsDeleteMilestoneDialogOpen}
+          milestone={milestoneToDelete}
+          onDelete={handleDeleteMilestone}
+          isDeleting={!!deletingMilestoneId}
+        />
       </div>
     </AppLayout>
-  );
-}
-
-type ProjectDialogProps = {
-  isOpen: boolean;
-  setIsOpen: (isOpen: boolean) => void;
-  onAddProject: (projectName: string) => void;
-};
-
-function ProjectDialog({ isOpen, setIsOpen, onAddProject }: ProjectDialogProps) {
-  const [projectName, setProjectName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!projectName.trim()) return;
-    setIsSubmitting(true);
-    await onAddProject(projectName.trim());
-    setProjectName('');
-    setIsSubmitting(false);
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[400px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>New Project</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <input
-              type="text"
-              placeholder="Project name"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-              disabled={isSubmitting}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <button
-              type="button"
-              className="mr-2 rounded border border-gray-300 px-4 py-2 hover:bg-gray-100"
-              onClick={() => setIsOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Create'}
-            </button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -722,6 +541,64 @@ function TaskDialog({ isOpen, setIsOpen, onAddTask, onUpdateTask, editingTask }:
   );
 }
 
+type ProjectDialogProps = {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  onAddProject: (projectName: string) => void;
+};
+
+function ProjectDialog({ isOpen, setIsOpen, onAddProject }: ProjectDialogProps) {
+  const [projectName, setProjectName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectName.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await onAddProject(projectName.trim());
+      setProjectName('');
+      setIsOpen(false);
+    } catch (error) {
+      // Error handled in parent
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[480px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Add New Project</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="projectName" className="text-right">Project Name</Label>
+              <Input
+                id="projectName"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="col-span-3"
+                placeholder="Enter project name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" disabled={isSubmitting}>Cancel</Button>
+            </DialogClose>
+            <Button type="submit" disabled={isSubmitting || !projectName.trim()}>
+              {isSubmitting ? 'Creating...' : 'Create Project'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 type MilestoneDialogProps = {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
@@ -735,46 +612,113 @@ function MilestoneDialog({ isOpen, setIsOpen, onAddMilestone, isSubmitting }: Mi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!milestoneName.trim()) return;
-    await onAddMilestone(milestoneName.trim());
-    setMilestoneName('');
+    try {
+      await onAddMilestone(milestoneName.trim());
+      setMilestoneName('');
+      setIsOpen(false);
+    } catch (error) {
+      // Error handled in parent
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add New Milestone</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <input
-              type="text"
-              placeholder="Milestone name"
-              value={milestoneName}
-              onChange={(e) => setMilestoneName(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-              disabled={isSubmitting}
-              autoFocus
-            />
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="milestoneName" className="text-right">Milestone Name</Label>
+              <Input
+                id="milestoneName"
+                value={milestoneName}
+                onChange={(e) => setMilestoneName(e.target.value)}
+                className="col-span-3"
+                placeholder="Enter milestone name"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <button
-              type="button"
-              className="mr-2 rounded border border-gray-300 px-4 py-2 hover:bg-gray-100"
-              onClick={() => setIsOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Create'}
-            </button>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" disabled={isSubmitting}>Cancel</Button>
+            </DialogClose>
+            <Button type="submit" disabled={isSubmitting || !milestoneName.trim()}>
+              {isSubmitting ? 'Creating...' : 'Create Milestone'}
+            </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type DeleteProjectDialogProps = {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  project: any;
+  onDelete: (projectId: string) => void;
+  isDeleting: boolean;
+};
+
+function DeleteProjectDialog({ isOpen, setIsOpen, project, onDelete, isDeleting }: DeleteProjectDialogProps) {
+  const handleDelete = () => {
+    onDelete(project.id);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Delete Project</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          <p>Are you sure you want to delete the project "{project?.name}"? This action cannot be undone.</p>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary" disabled={isDeleting}>Cancel</Button>
+          </DialogClose>
+          <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete Project'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type DeleteMilestoneDialogProps = {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  milestone: any;
+  onDelete: (projectId: string, milestoneId: string) => void;
+  isDeleting: boolean;
+};
+
+function DeleteMilestoneDialog({ isOpen, setIsOpen, milestone, onDelete, isDeleting }: DeleteMilestoneDialogProps) {
+  const handleDelete = () => {
+    onDelete(milestone.projectId, milestone.id);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>Delete Milestone</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          <p>Are you sure you want to delete the milestone "{milestone?.name}"? This action cannot be undone.</p>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary" disabled={isDeleting}>Cancel</Button>
+          </DialogClose>
+          <Button type="button" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete Milestone'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

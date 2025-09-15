@@ -30,7 +30,7 @@ import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Grievance, GrievanceClientData } from '@/types';
-import { getGrievances, addGrievance, markGrievancesAsSeen, deleteGrievances } from '@/services/grievanceService';
+import { getGrievances, getGrievancesPaginated, addGrievance, markGrievancesAsSeen, deleteGrievances } from '@/services/grievanceService';
 import { format } from 'date-fns';
 
 const grievanceSchema = z.object({
@@ -131,35 +131,63 @@ function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: st
 }
 
 
-// 'use client';
-
-import { useState, useEffect, useCallback } from 'react';
-
 export default function GrievancesPage() {
   const [grievances, setGrievances] = useState<Grievance[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [lastVisible, setLastVisible] = useState<any | null>(null);
+  const [pageSize] = useState(5);
+  const [isNextDisabled, setIsNextDisabled] = useState(false);
+  const [isPrevDisabled, setIsPrevDisabled] = useState(true);
+  const [pageStack, setPageStack] = useState<any[]>([]);
+
   const { toast } = useToast();
   const { user, userProfile, loading: authLoading } = useAuth();
   const isCEO = userProfile?.role === 'CEO';
 
-  const fetchGrievances = useCallback(async (workspaceId: string) => {
+  const fetchGrievances = useCallback(async (workspaceId: string, startAfterDoc?: any, isNextPage = true) => {
     console.log('fetchGrievances called with:', { workspaceId, user, userProfile });
     if (!user?.uid || !user?.email) {
-        setLoading(false);
-        return;
+      setLoading(false);
+      return;
     }
 
     setLoading(true);
     try {
-      const data = await getGrievances(workspaceId, { userId: user.uid, userEmail: user.email, userRole: userProfile?.role || 'Member' });
+      const { grievances: data, lastVisible: lastDoc } = await getGrievancesPaginated(
+        workspaceId,
+        { userId: user.uid, userEmail: user.email, userRole: userProfile?.role || 'Member' },
+        pageSize,
+        startAfterDoc
+      );
+
       if (!data || !Array.isArray(data)) {
         toast({ variant: 'destructive', title: 'Error', description: 'Invalid data received for grievances.' });
         setGrievances([]);
+        setIsNextDisabled(true);
         return;
       }
+
+      if (data.length === 0) {
+        setGrievances([]);
+        setIsNextDisabled(true);
+        setLoading(false);
+        return;
+      }
+
       data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setGrievances(data);
+      setLastVisible(lastDoc);
+
+      if (isNextPage) {
+        setPageStack((prev) => [...prev, lastDoc]);
+        setIsPrevDisabled(false);
+      } else {
+        setPageStack((prev) => prev.slice(0, -1));
+        setIsPrevDisabled(pageStack.length <= 1);
+      }
+
+      setIsNextDisabled(data.length < pageSize);
     } catch (error) {
       console.error('Error fetching grievances:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch grievances.' });
@@ -167,7 +195,7 @@ export default function GrievancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, user, userProfile?.role]);
+  }, [toast, user, userProfile?.role, pageSize, pageStack]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -190,16 +218,19 @@ export default function GrievancesPage() {
   };
 
   useEffect(() => {
+    console.log('useEffect triggered with:', { userProfile, user, isCEO, authLoading });
     if (userProfile?.workspaceId && user) {
-        const workspaceId = userProfile.workspaceId;
-        fetchGrievances(workspaceId);
-        if (isCEO) {
-            markGrievancesAsSeen(workspaceId);
-        }
+      const workspaceId = userProfile.workspaceId;
+      console.log('Calling fetchGrievances with workspaceId:', workspaceId);
+      fetchGrievances(workspaceId);
+      if (isCEO) {
+        markGrievancesAsSeen(workspaceId);
+      }
     } else if (!authLoading) {
-        setLoading(false);
+      setLoading(false);
     }
   }, [user, userProfile, isCEO, authLoading, fetchGrievances]);
+
 
 
   if (authLoading) {
@@ -217,65 +248,83 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-           {!isCEO && userProfile?.workspaceId && 
-             <AddGrievanceDialog 
-                workspaceId={userProfile.workspaceId}
-                onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)} 
-             />
-           }
-           <Button variant="destructive" onClick={deleteSelected} disabled={selectedIds.length === 0}>
-             Delete Selected
-           </Button>
+          {!isCEO && userProfile?.workspaceId && (
+            <AddGrievanceDialog
+              workspaceId={userProfile.workspaceId}
+              onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)}
+            />
+          )}
+          <Button variant="destructive" onClick={deleteSelected} disabled={selectedIds.length === 0}>
+            Delete Selected
+          </Button>
         </div>
-        
-        {loading ? (
-           <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
-        ) : grievances.length === 0 ? (
-            <div className="text-center py-12">
-                <p className="text-muted-foreground mt-2">
-                    {isCEO ? "Belum ada pengaduan yang diajukan oleh anggota tim." : "Anda belum mengajukan pengaduan."}
-                </p>
-            </div>
-        ) : (
-            <div className="flex flex-col gap-4">
-                {grievances.map(g => (
-                    <Card key={g.id}>
-                        <CardHeader className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(g.id)}
-                            onChange={() => toggleSelect(g.id)}
-                            className="h-4 w-4"
-                          />
-                          <div className="flex-1">
-                            <CardTitle>{g.subject}</CardTitle>
-                            <CardDescription>
-                                {isCEO && `From: ${g.userEmail} | `}
-                                Submitted on {format(g.createdAt, 'MMM d, yyyy, HH:mm')}
-                            </CardDescription>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
-                        </CardContent>
-                        <CardFooter className="flex justify-between items-center">
-                             <div></div>
-                             {g.fileUrl && (
-                                <Button asChild variant="outline" size="sm">
-                                    <a href={g.fileUrl} target="_blank" rel="noopener noreferrer">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Lampiran
-                                    </a>
-                                 </Button>
-                             )}
-                        </CardFooter>
-                    </Card>
-                ))}
-            </div>
-        )}
 
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        ) : grievances.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mt-2">
+              {isCEO ? 'Belum ada pengaduan yang diajukan oleh anggota tim.' : 'Anda belum mengajukan pengaduan.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-4">
+              {grievances.map((g) => (
+                <Card key={g.id}>
+                  <CardHeader className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(g.id)}
+                      onChange={() => toggleSelect(g.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <CardTitle>{g.subject}</CardTitle>
+                      <CardDescription>
+                        {isCEO && `From: ${g.userEmail} | `}
+                        Submitted on {format(g.createdAt, 'MMM d, yyyy, HH:mm')}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center">
+                    <div></div>
+                    {g.fileUrl && (
+                      <Button asChild variant="outline" size="sm">
+                        <a href={g.fileUrl} target="_blank" rel="noopener noreferrer">
+                          <Download className="mr-2 h-4 w-4" />
+                          Lampiran
+                        </a>
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+            <div className="flex justify-center gap-4 mt-4">
+              <Button onClick={() => {
+                if (pageStack.length > 1) {
+                  const prevPageDoc = pageStack[pageStack.length - 2];
+                  fetchGrievances(userProfile!.workspaceId, prevPageDoc, false);
+                }
+              }} disabled={isPrevDisabled}>
+                Previous
+              </Button>
+              <Button onClick={() => {
+                if (!isNextDisabled) {
+                  fetchGrievances(userProfile!.workspaceId, lastVisible, true);
+                }
+              }} disabled={isNextDisabled}>
+                Next
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </AppLayout>
   );
