@@ -45,6 +45,7 @@ export const getGrievances = async (workspaceId: string, user: GetGrievancesPara
   }
 
   const snapshot = await getDocs(q);
+  console.log("Docs fetched:", snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
   // Convert Timestamp to Date for serialization
   return snapshot.docs.map((doc) => {
     const data = doc.data();
@@ -111,7 +112,11 @@ export const getGrievancesPaginated = async (
     return {
       ...data,
       id: doc.id,
-      createdAt: (data.createdAt as Timestamp).toDate(),
+      createdAt:  data.createdAt instanceof Timestamp
+    ? data.createdAt.toDate()
+    : data.createdAt instanceof Date
+      ? data.createdAt
+      : new Date(data.createdAt),
     } as Grievance;
   });
 
@@ -123,10 +128,14 @@ export const getGrievancesPaginated = async (
 export const addGrievance = async (
   workspaceId: string,
   data: GrievanceClientData,
-  user: { userId: string, userEmail: string }
+  user: { userId: string, userEmail: string, userRole: string }
 ): Promise<void> => {
   if (!user || !user.userId || !user.userEmail) {
     throw new Error('User not authenticated');
+  }
+
+  if (user.userRole === 'CEO') {
+    throw new Error('CEO cannot submit grievances');
   }
 
   let fileUrl: string | undefined = undefined;
@@ -152,10 +161,11 @@ export const addGrievance = async (
     userEmail: user.userEmail,
     subject: data.subject,
     description: data.description,
-    createdAt: Timestamp.now(),
+    createdAt: Timestamp.now().toDate(),
     status: 'Open' as const,
     seenByCEO: false,
-    workspaceId: workspaceId, // Add workspaceId
+    workspaceId: workspaceId,
+    type: data.type, // Set type from data
     ...(fileUrl && { fileUrl }),
     ...(filePath && { filePath }),
   };

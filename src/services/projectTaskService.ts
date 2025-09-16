@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, serverTimestamp, setDoc } from 'firebase/firestore';
 
 export interface ProjectTask {
   id: string;
@@ -26,18 +26,23 @@ export const addProjectTask = async (workspaceId: string, taskData: Omit<Project
   const docRef = await addDoc(collection(db, 'projectTasks'), {
     ...taskData,
     workspaceId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
   return docRef.id;
 };
 
 export const updateProjectTask = async (workspaceId: string, taskId: string, taskData: Partial<Omit<ProjectTask, 'id' | 'createdAt' | 'updatedAt'>>) => {
   const taskRef = doc(db, 'projectTasks', taskId);
-  await updateDoc(taskRef, {
-    ...taskData,
-    updatedAt: new Date(),
-  });
+  try {
+    await setDoc(taskRef, {
+      ...taskData,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error updating project task:', error);
+    throw error;
+  }
 };
 
 export const deleteProjectTask = async (workspaceId: string, taskId: string) => {

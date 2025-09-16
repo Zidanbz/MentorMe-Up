@@ -169,7 +169,12 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return { ...t, ...convertDatesToTimestamps(taskUpdate) };
+                        // Map 'status' to 'completed' boolean for compatibility
+                        const updatedTask = { ...t, ...convertDatesToTimestamps(taskUpdate) };
+                        if ('status' in taskUpdate) {
+                            updatedTask.completed = taskUpdate.status === 'Completed';
+                        }
+                        return updatedTask;
                     }
                     return t;
                 });

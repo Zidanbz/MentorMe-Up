@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { Loader2, MoreVertical, PlusCircle } from 'lucide-react';
+import { Loader2, MoreVertical, PlusCircle, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,7 @@ import * as z from 'zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 const taskSchema = z.object({
   name: z.string().min(1, { message: 'Task name is required' }),
@@ -77,6 +78,7 @@ export default function ProjectTaskPage() {
   const [isDeleteMilestoneDialogOpen, setIsDeleteMilestoneDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any | null>(null);
   const [milestoneToDelete, setMilestoneToDelete] = useState<any | null>(null);
+  const [openMilestones, setOpenMilestones] = useState<Record<string, boolean>>({});
 
   const { toast } = useToast();
   const { userProfile, loading: authLoading } = useAuth();
@@ -93,6 +95,11 @@ export default function ProjectTaskPage() {
       setLoading(false);
     }
   }, [toast]);
+  
+  // Remove duplicate onTaskCheckboxClick declaration if any before this line
+  // Updated onTaskCheckboxClick with optimistic UI update
+  // Remove duplicate declarations of onTaskCheckboxClick
+  // Ensure only one onTaskCheckboxClick function exists with optimistic UI update
 
   useEffect(() => {
     const workspaceId = userProfile?.workspaceId || localStorage.getItem('workspaceId');
@@ -276,10 +283,30 @@ export default function ProjectTaskPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Workspace not found. Please log out and log in again.' });
       return;
     }
-    const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
+    const newStatus = task.completed ? false : true;
+    console.log('Updating task status:', { workspaceId, taskId: task.id, newStatus });
     try {
-      await updateProjectTask(workspaceId, projectId, milestoneId, task.id, { status: newStatus });
-      await fetchProjects(workspaceId);
+      // Use updateTask to update task completion status inside projects collection
+      await updateTask(workspaceId, projectId, milestoneId, task.id, { completed: newStatus });
+      // Optimistically update UI state
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
+          if (project.id !== projectId) return project;
+          return {
+            ...project,
+            milestones: project.milestones.map((milestone: any) => {
+              if (milestone.id !== milestoneId) return milestone;
+              return {
+                ...milestone,
+                tasks: milestone.tasks.map((t: any) => {
+                  if (t.id !== task.id) return t;
+                  return { ...t, completed: newStatus };
+                }),
+              };
+            }),
+          };
+        })
+      );
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task status.' });
     }
@@ -339,73 +366,84 @@ export default function ProjectTaskPage() {
                 </div>
               </div>
               {project.milestones && project.milestones.length > 0 ? (
-                project.milestones.map((milestone: any) => (
-                  <div key={milestone.id} className="mb-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <h3 className="text-lg font-medium">{milestone.name}</h3>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" disabled={deletingMilestoneId === milestone.id}>
-                            {deletingMilestoneId === milestone.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                project.milestones.map((milestone: any) => {
+                  const key = `${project.id}-${milestone.id}`;
+                  const isOpen = openMilestones[key] ?? false;
+                  return (
+                    <Collapsible key={milestone.id} className="mb-4" open={isOpen} onOpenChange={(open) => setOpenMilestones(prev => ({...prev, [key]: open}))}>
+                      <div className="flex justify-between items-center mb-1">
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" className="p-0 h-auto font-medium text-lg justify-start">
+                            <ChevronDown className={`mr-2 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                            {milestone.name}
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openDeleteMilestoneDialog(project.id, milestone)} className="text-red-600">
-                            Delete Milestone
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    {milestone.tasks && milestone.tasks.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>{/* Checkbox column */}</TableHead>
-                            <TableHead>Task Name</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Due Date</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {milestone.tasks.map((task: any) => (
-                            <TableRow key={task.id}>
-                              <TableCell>
-                                <input
-                                  type="checkbox"
-                                  checked={task.status === 'Completed'}
-                                  onChange={() => onTaskCheckboxClick(project.id, milestone.id, task)}
-                                />
-                              </TableCell>
-                              <TableCell>{task.name}</TableCell>
-                              <TableCell>{task.description || '-'}</TableCell>
-                              <TableCell>{task.dueDate ? (typeof task.dueDate.toDate === 'function' ? format(task.dueDate.toDate(), 'MMM d, yyyy') : format(new Date(task.dueDate), 'MMM d, yyyy')) : '-'}</TableCell>
-                              <TableCell className="text-right">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={deletingTaskId === task.id}>
-                                      {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => openEditTaskDialog(project.id, milestone.id, task)}>Edit</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDeleteTask(project.id, milestone.id, task.id)}>Delete</DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="italic text-sm text-muted-foreground">No tasks found.</p>
-                    )}
-                    <Button size="sm" className="mt-2" onClick={() => openNewTaskDialog(project.id, milestone.id)}>
-                      <PlusCircle className="mr-1 h-4 w-4" />
-                      Add Task
-                    </Button>
-                  </div>
-                ))
+                        </CollapsibleTrigger>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" disabled={deletingMilestoneId === milestone.id}>
+                              {deletingMilestoneId === milestone.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openDeleteMilestoneDialog(project.id, milestone)} className="text-red-600">
+                              Delete Milestone
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <CollapsibleContent>
+                        {milestone.tasks && milestone.tasks.length > 0 ? (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>{/* Checkbox column */}</TableHead>
+                                <TableHead>Task Name</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {milestone.tasks.map((task: any) => (
+                                <TableRow key={task.id}>
+                                  <TableCell>
+                                    <input
+                                      type="checkbox"
+                                      checked={task.completed}
+                                      onChange={() => onTaskCheckboxClick(project.id, milestone.id, task)}
+                                    />
+                                  </TableCell>
+                                  <TableCell>{task.name}</TableCell>
+                                  <TableCell>{task.description || '-'}</TableCell>
+                                  <TableCell>{task.dueDate ? (typeof task.dueDate.toDate === 'function' ? format(task.dueDate.toDate(), 'MMM d, yyyy') : format(new Date(task.dueDate), 'MMM d, yyyy')) : '-'}</TableCell>
+                                  <TableCell className="text-right">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={deletingTaskId === task.id}>
+                                          {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => openEditTaskDialog(project.id, milestone.id, task)}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDeleteTask(project.id, milestone.id, task.id)}>Delete</DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground">No tasks found.</p>
+                        )}
+                        <Button size="sm" className="mt-2" onClick={() => openNewTaskDialog(project.id, milestone.id)}>
+                          <PlusCircle className="mr-1 h-4 w-4" />
+                          Add Task
+                        </Button>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })
               ) : (
                 <p className="italic text-sm text-muted-foreground">No milestones found.</p>
               )}

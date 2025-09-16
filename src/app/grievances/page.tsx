@@ -30,7 +30,9 @@ import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { Grievance, GrievanceClientData } from '@/types';
-import { getGrievances, getGrievancesPaginated, addGrievance, markGrievancesAsSeen, deleteGrievances } from '@/services/grievanceService';
+import { getGrievances, addGrievance, markGrievancesAsSeen, deleteGrievances } from '@/services/grievanceService';
+import { Timestamp } from 'firebase/firestore';
+
 import { format } from 'date-fns';
 
 const grievanceSchema = z.object({
@@ -41,7 +43,7 @@ const grievanceSchema = z.object({
 
 type GrievanceFormData = z.infer<typeof grievanceSchema>;
 
-function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: string, onGrievanceAdded: () => void }) {
+function AddGrievanceDialog({ workspaceId, onGrievanceAdded, userProfile }: { workspaceId: string, onGrievanceAdded: () => void, userProfile: any }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -69,10 +71,11 @@ function AddGrievanceDialog({ workspaceId, onGrievanceAdded }: { workspaceId: st
       const grievanceData: GrievanceClientData = {
         subject: data.subject,
         description: data.description,
+        type: userProfile.workspaceId, // Set type based on workspace
         file: fileData,
       };
 
-      await addGrievance(workspaceId, grievanceData, { userId: user.uid, userEmail: user.email ?? '' });
+      await addGrievance(workspaceId, grievanceData, { userId: user.uid, userEmail: user.email ?? '', userRole: userProfile.role });
       toast({ title: 'Success', description: 'Your grievance has been submitted.' });
       setIsDialogOpen(false);
       reset();
@@ -147,19 +150,22 @@ export default function GrievancesPage() {
 
   const fetchGrievances = useCallback(async (workspaceId: string, startAfterDoc?: any, isNextPage = true) => {
     console.log('fetchGrievances called with:', { workspaceId, user, userProfile });
-    if (!user?.uid || !user?.email) {
+    if (!user?.uid || !user?.email || !userProfile?.role) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      const { grievances: data, lastVisible: lastDoc } = await getGrievancesPaginated(
-        workspaceId,
-        { userId: user.uid, userEmail: user.email, userRole: userProfile?.role || 'Member' },
-        pageSize,
-        startAfterDoc
-      );
+      console.log('fetchGrievances params:', { workspaceId, userRole: userProfile.role });
+      const data = await getGrievances(workspaceId, {
+        userId: user.uid,
+        userEmail: user.email,
+        userRole: userProfile.role,
+      });
+
+      console.log('Grievances fetched:', data);
+      console.log('Grievances count:', data.length);
 
       if (!data || !Array.isArray(data)) {
         toast({ variant: 'destructive', title: 'Error', description: 'Invalid data received for grievances.' });
@@ -175,18 +181,16 @@ export default function GrievancesPage() {
         return;
       }
 
-      data.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      data.sort((a, b) => {
+        // createdAt is already a Date object, no need to call toDate()
+        const aDate = a.createdAt instanceof Date ? a.createdAt : (a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt));
+        const bDate = b.createdAt instanceof Date ? b.createdAt : (b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt));
+        return bDate.getTime() - aDate.getTime();
+      });
       setGrievances(data);
-      setLastVisible(lastDoc);
-
-      if (isNextPage) {
-        setPageStack((prev) => [...prev, lastDoc]);
-        setIsPrevDisabled(false);
-      } else {
-        setPageStack((prev) => prev.slice(0, -1));
-        setIsPrevDisabled(pageStack.length <= 1);
-      }
-
+      setLastVisible(null);
+      setPageStack([]);
+      setIsPrevDisabled(true);
       setIsNextDisabled(data.length < pageSize);
     } catch (error) {
       console.error('Error fetching grievances:', error);
@@ -195,7 +199,10 @@ export default function GrievancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, user, userProfile?.role, pageSize, pageStack]);
+  }, [toast, pageSize, user, userProfile]);
+
+
+
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -248,17 +255,25 @@ export default function GrievancesPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Pengaduan Anggota</h1>
-          {!isCEO && userProfile?.workspaceId && (
-            <AddGrievanceDialog
-              workspaceId={userProfile.workspaceId}
-              onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)}
-            />
+          {/* Hide grievances feature as it is under development */}
+          {userProfile?.workspaceId && (
+            <>
+              {!isCEO && (
+                <AddGrievanceDialog
+                  workspaceId={userProfile.workspaceId}
+                  onGrievanceAdded={() => fetchGrievances(userProfile.workspaceId)}
+                  userProfile={userProfile}
+                />
+              )}
+            </>
           )}
+
           <Button variant="destructive" onClick={deleteSelected} disabled={selectedIds.length === 0}>
             Delete Selected
           </Button>
         </div>
 
+        {/* Hide grievances list and messages */}
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -279,18 +294,17 @@ export default function GrievancesPage() {
                       type="checkbox"
                       checked={selectedIds.includes(g.id)}
                       onChange={() => toggleSelect(g.id)}
-                      className="h-4 w-4"
+                      className="h-4 w-4 self-start"
                     />
                     <div className="flex-1">
                       <CardTitle>{g.subject}</CardTitle>
                       <CardDescription>
-                        {isCEO && `From: ${g.userEmail} | `}
-                        Submitted on {format(g.createdAt, 'MMM d, yyyy, HH:mm')}
+                        Submitted on {format(g.createdAt instanceof Date ? g.createdAt : (g.createdAt instanceof Timestamp ? g.createdAt.toDate() : new Date(g.createdAt)), 'MMM d, yyyy, HH:mm')}
                       </CardDescription>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{g.description}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap text-left">{g.description}</p>
                   </CardContent>
                   <CardFooter className="flex justify-between items-center">
                     <div></div>
@@ -308,17 +322,12 @@ export default function GrievancesPage() {
             </div>
             <div className="flex justify-center gap-4 mt-4">
               <Button onClick={() => {
-                if (pageStack.length > 1) {
-                  const prevPageDoc = pageStack[pageStack.length - 2];
-                  fetchGrievances(userProfile!.workspaceId, prevPageDoc, false);
-                }
+                // Pagination logic here if needed
               }} disabled={isPrevDisabled}>
                 Previous
               </Button>
               <Button onClick={() => {
-                if (!isNextDisabled) {
-                  fetchGrievances(userProfile!.workspaceId, lastVisible, true);
-                }
+                // Pagination logic here if needed
               }} disabled={isNextDisabled}>
                 Next
               </Button>

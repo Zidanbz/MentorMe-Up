@@ -62,16 +62,18 @@ export type Grievance = {
   description: string;
   fileUrl?: string;
   filePath?: string;
-  createdAt: Date;
+  createdAt: Timestamp | Date | number;
   status: 'Open' | 'In Progress' | 'Resolved';
   seenByCEO: boolean;
   workspaceId: string;
+  type: string; // e.g., 'mentorme', 'homeworkers', 'neo'
 };
 
 // Type for data sent from client to server for grievance submission
 export type GrievanceClientData = {
     subject: string;
     description: string;
+    type: string; // e.g., 'mentorme', 'homeworkers', 'neo'
     file?: {
         buffer: string; // base64 encoded string
         name: string;
