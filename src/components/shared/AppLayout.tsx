@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListTodo, ShieldAlert, Star, Home as HomeIcon, Layers, Users as TeamIcon } from 'lucide-react';
+import { ListTodo, ShieldAlert, Star, Home as HomeIcon, Layers } from 'lucide-react';
 import { Home, FileText, Banknote, Settings, Layers3, LogOut, User, Loader2, KeyRound, BookUser } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -52,7 +52,6 @@ const navItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
-  { href: '/team', label: 'Team', icon: TeamIcon },
   { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert, notification: true },
   { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
