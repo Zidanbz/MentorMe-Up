@@ -52,7 +52,6 @@ const navItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/cash-flow', label: 'Cash Flow', icon: Banknote },
   { href: '/project-task', label: 'Project & Task', icon: ListTodo },
-  { href: '/team', label: 'Team', icon: TeamIcon },
   { href: '/grievances', label: 'Pengaduan', icon: ShieldAlert, notification: true },
   { href: '/user-guide', label: 'User Guide', icon: BookUser },
 ];
