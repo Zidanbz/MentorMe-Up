@@ -332,7 +332,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     title="Add New Task"
                     description={`Create a new task for the "${milestone.name}" milestone.`}
                     schema={taskSchema}
-                    onSubmit={(data) => onAddTask(data)}
+                    onSubmit={onAddTask}
                     fields={[
                         { name: 'name', label: 'Task Name', placeholder: 'e.g. Design social media assets' },
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
@@ -550,3 +550,4 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
     
 
     
+
