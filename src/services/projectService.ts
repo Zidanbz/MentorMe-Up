@@ -26,6 +26,10 @@ const convertDatesToTimestamps = (data: any): any => {
     for (const key in data) {
         if (data[key] instanceof Date) {
             newData[key] = Timestamp.fromDate(data[key]);
+        } else if (key === 'completedAt' && data[key] === null) {
+            newData[key] = null;
+        } else if (key === 'completedAt' && data[key]) {
+            newData[key] = serverTimestamp();
         } else {
             newData[key] = data[key];
         }
@@ -122,7 +126,7 @@ export const deleteMilestone = async (workspaceId: string, projectId: string, mi
 }
 
 // Task functions
-export const addTask = async (workspaceId: string, projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed'>): Promise<void> => {
+export const addTask = async (workspaceId: string, projectId: string, milestoneId: string, task: Omit<Task, 'id' | 'completed' | 'completedAt'>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
     await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
@@ -134,12 +138,15 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
             throw new Error("Project does not belong to this workspace!");
         }
         
+        const taskWithDates = convertDatesToTimestamps(task);
+
         const newTask: Task = {
             id: uuidv4(),
             name: task.name,
             completed: false,
+            completedAt: undefined,
             ...(task.description && { description: task.description }),
-            ...(task.dueDate && { dueDate: Timestamp.fromDate(task.dueDate as Date) })
+            ...(taskWithDates.dueDate && { dueDate: taskWithDates.dueDate })
         }
 
         const newMilestones = projectData.milestones.map(m => {
@@ -153,7 +160,7 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
     });
 };
 
-export const updateTask = async (workspaceId: string, projectId: string, milestoneId: string, taskId: string, taskUpdate: Partial<Task>): Promise<void> => {
+export const updateTask = async (workspaceId: string, projectId: string, milestoneId: string, taskId: string, taskUpdate: Partial<Omit<Task, 'id'>>): Promise<void> => {
     const projectRef = doc(db, 'projects', projectId);
      await runTransaction(db, async (transaction) => {
         const projectDoc = await transaction.get(projectRef);
@@ -164,12 +171,19 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
         if (projectData.workspaceId !== workspaceId && (workspaceId === 'mentorme' && projectData.workspaceId)) {
             throw new Error("Project does not belong to this workspace!");
         }
+        
+        let updateData = { ...taskUpdate };
+        if(taskUpdate.completed) {
+            updateData.completedAt = serverTimestamp() as Timestamp;
+        } else if (taskUpdate.completed === false) {
+            updateData.completedAt = undefined;
+        }
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return { ...t, ...convertDatesToTimestamps(taskUpdate) };
+                        return { ...t, ...updateData };
                     }
                     return t;
                 });

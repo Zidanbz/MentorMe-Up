@@ -35,6 +35,7 @@ export type Task = {
   description?: string;
   dueDate?: Timestamp | Date;
   completed: boolean;
+  completedAt?: Timestamp | Date;
   assignedTo?: string; // User ID
   subTasks?: Task[]; // Nested sub-tasks
   category?: 'Marketing' | 'Finance' | 'Tech' | 'Operations' | 'Other'; // Label warna
