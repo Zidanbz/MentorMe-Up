@@ -118,7 +118,7 @@ export default function ProjectTaskPage() {
       await deleteTask(userProfile.workspaceId, projectId, milestoneId, taskId);
       fetchProjects(userProfile.workspaceId);
       toast({ title: 'Success', description: 'Task deleted successfully.' });
-    } catch (error) {
+    } catch (error) => {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
     } finally {
       setProcessingAction(null);
@@ -194,7 +194,7 @@ export default function ProjectTaskPage() {
                 key={project.id}
                 project={project}
                 onAddMilestone={(data) => handleAddMilestone(project.id, data)}
-                onAddTask={handleAddTask}
+                onAddTask={(milestoneId, data) => handleAddTask(project.id, milestoneId, data)}
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
                 onDeleteMilestone={handleDeleteMilestone}
@@ -213,7 +213,7 @@ export default function ProjectTaskPage() {
 function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDeleteTask, onDeleteMilestone, onDeleteProject, processingAction }: {
   project: Project,
   onAddMilestone: (data: z.infer<typeof milestoneSchema>) => Promise<boolean>,
-  onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
+  onAddTask: (milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDeleteMilestone: (projectId: string, milestoneId: string) => void,
@@ -246,7 +246,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     key={milestone.id}
                     projectId={project.id}
                     milestone={milestone}
-                    onAddTask={(data) => onAddTask(project.id, milestone.id, data)}
+                    onAddTask={(data) => onAddTask(milestone.id, data)}
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
@@ -460,26 +460,25 @@ function TaskActions({ onDelete, isDeleting }: { onDelete: () => void, isDeletin
 }
 
 // Generic Form Dialog
-type FormDialogProps = {
+type FormDialogProps<T extends z.ZodObject<any, any>> = {
   trigger: React.ReactElement;
   title: string;
   description: string;
-  schema: z.ZodObject<any, any>;
-  onSubmit: (data: any) => Promise<boolean>;
-  fields: { name: string, label: string, placeholder: string, type?: 'text' | 'textarea' | 'date' }[];
+  schema: T;
+  onSubmit: (data: z.infer<T>) => Promise<boolean>;
+  fields: { name: keyof z.infer<T> & string, label: string, placeholder: string, type?: 'text' | 'textarea' | 'date' }[];
 }
 
-function FormDialog({ trigger, title, description, schema, onSubmit, fields }: FormDialogProps) {
+function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, description, schema, onSubmit, fields }: FormDialogProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<z.infer<T>>({
     resolver: zodResolver(schema),
   });
 
-  const handleFormSubmit = async (data: any) => {
+  const handleFormSubmit = async (data: z.infer<T>) => {
     const success = await onSubmit(data);
     if (success) {
       setIsOpen(false);
-      reset();
     }
   };
 
@@ -516,11 +515,11 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
                                             className={cn("col-span-3 justify-start text-left font-normal", !controllerField.value && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {controllerField.value ? format(controllerField.value, 'PPP') : <span>Pick a date</span>}
+                                            {controllerField.value ? format(controllerField.value as Date, 'PPP') : <span>Pick a date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={controllerField.value} onSelect={controllerField.onChange} initialFocus />
+                                        <Calendar mode="single" selected={controllerField.value as Date} onSelect={controllerField.onChange} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                             )}
@@ -544,10 +543,3 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
     </Dialog>
   );
 }
-
-    
-
-    
-
-    
-
