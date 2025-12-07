@@ -9,19 +9,20 @@ import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { PlusCircle, Loader2, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, CalendarIcon } from 'lucide-react';
 import type { Project, Milestone, Task } from '@/types';
 import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
 import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -33,33 +34,9 @@ const milestoneSchema = z.object({
 const taskSchema = z.object({
   name: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
-  dueDate: z.string().optional(), // Now a string from the dropdown
+  dueDate: z.date().optional(),
 });
 
-const dueDateOptions = [
-    { value: 'none', label: 'No due date' },
-    { value: 'today', label: 'Today' },
-    { value: 'tomorrow', label: 'Tomorrow' },
-    { value: '3_days', label: 'In 3 days' },
-    { value: '1_week', label: 'In 1 week' },
-];
-
-const convertDueDateStringToDate = (dueDateString?: string): Date | undefined => {
-    if (!dueDateString || dueDateString === 'none') return undefined;
-    const now = new Date();
-    switch (dueDateString) {
-        case 'today':
-            return now;
-        case 'tomorrow':
-            return addDays(now, 1);
-        case '3_days':
-            return addDays(now, 3);
-        case '1_week':
-            return addDays(now, 7);
-        default:
-            return undefined;
-    }
-}
 
 export default function ProjectTaskPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -115,12 +92,7 @@ export default function ProjectTaskPage() {
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
     if (!userProfile?.workspaceId) return false;
     try {
-      const taskData = {
-          name: data.name,
-          description: data.description,
-          dueDate: convertDueDateStringToDate(data.dueDate),
-      };
-      await addTask(userProfile.workspaceId, projectId, milestoneId, taskData);
+      await addTask(userProfile.workspaceId, projectId, milestoneId, data);
       fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
@@ -373,9 +345,9 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     fields={[
                         { name: 'name', label: 'Task Name', placeholder: 'e.g. Design social media assets' },
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
-                        { name: 'dueDate', label: 'Due Date', type: 'select', options: dueDateOptions },
+                        { name: 'dueDate', label: 'Due Date', type: 'date' },
                     ]}
-                    defaultValues={{ name: '', description: '', dueDate: 'none' }}
+                    defaultValues={{ name: '', description: '', dueDate: undefined }}
                 />
                 <MilestoneActions 
                     onDelete={onDelete}
@@ -516,7 +488,7 @@ type FormDialogProps<T extends z.ZodObject<any, any>> = {
   description: string;
   schema: T;
   onSubmit: (data: z.infer<T>) => Promise<boolean>;
-  fields: { name: keyof z.infer<T> & string, label: string, placeholder?: string, type?: 'text' | 'textarea' | 'select', options?: {value: string, label: string}[] }[];
+  fields: { name: keyof z.infer<T> & string, label: string, placeholder?: string, type?: 'text' | 'textarea' | 'date' }[];
   defaultValues: z.infer<T>;
 }
 
@@ -553,23 +525,30 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
             {fields.map(field => (
                 <div key={field.name} className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor={field.name} className="text-right">{field.label}</Label>
-                    {field.type === 'textarea' ? (
+                     {field.type === 'textarea' ? (
                          <Textarea id={field.name} placeholder={field.placeholder} className="col-span-3" {...register(field.name)} />
-                    ) : field.type === 'select' && field.options ? (
+                    ) : field.type === 'date' ? (
                          <Controller
                             name={field.name}
                             control={control}
                             render={({ field: controllerField }) => (
-                                <Select onValueChange={controllerField.onChange} value={controllerField.value} >
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder={field.placeholder} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {field.options?.map(option => (
-                                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                 <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "col-span-3 justify-start text-left font-normal",
+                                                !controllerField.value && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {controllerField.value ? format(controllerField.value, 'PPP') : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={controllerField.value as Date | undefined} onSelect={controllerField.onChange} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
                             )}
                         />
                     ) : (

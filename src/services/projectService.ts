@@ -30,8 +30,8 @@ const convertDatesToTimestamps = (data: any): any => {
             newData[key] = null;
         } else if (key === 'completedAt' && data[key]) {
             newData[key] = serverTimestamp();
-        } else {
-            newData[key] = data[key];
+        } else if (data[key] !== undefined) {
+             newData[key] = data[key];
         }
     }
     return newData;
@@ -138,15 +138,14 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
             throw new Error("Project does not belong to this workspace!");
         }
         
-        const taskWithDates = convertDatesToTimestamps(task);
+        const taskWithTimestamps = convertDatesToTimestamps(task);
 
         const newTask: Task = {
             id: uuidv4(),
             name: task.name,
             completed: false,
             completedAt: undefined,
-            ...(task.description && { description: task.description }),
-            ...(taskWithDates.dueDate && { dueDate: taskWithDates.dueDate })
+            ...taskWithTimestamps,
         }
 
         const newMilestones = projectData.milestones.map(m => {
@@ -173,17 +172,19 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
         }
         
         let updateData = { ...taskUpdate };
-        if(taskUpdate.completed) {
+        if(taskUpdate.completed === true) {
             updateData.completedAt = serverTimestamp() as Timestamp;
         } else if (taskUpdate.completed === false) {
             updateData.completedAt = undefined;
         }
 
+        const convertedUpdateData = convertDatesToTimestamps(updateData);
+
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return { ...t, ...updateData };
+                        return { ...t, ...convertedUpdateData };
                     }
                     return t;
                 });
