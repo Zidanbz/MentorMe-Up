@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -332,7 +332,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     title="Add New Task"
                     description={`Create a new task for the "${milestone.name}" milestone.`}
                     schema={taskSchema}
-                    onSubmit={onAddTask}
+                    onSubmit={(data) => onAddTask(data)}
                     fields={[
                         { name: 'name', label: 'Task Name', placeholder: 'e.g. Design social media assets' },
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
