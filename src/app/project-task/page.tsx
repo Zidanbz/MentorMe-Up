@@ -543,7 +543,7 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {controllerField.value ? format(new Date(controllerField.value), 'PPP') : <span>Pick a date</span>}
+                                            {controllerField.value ? format(new Date(controllerField.value as any), 'PPP') : <span>Pick a date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">

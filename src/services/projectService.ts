@@ -26,10 +26,6 @@ const convertDatesToTimestamps = (data: any): any => {
     for (const key in data) {
         if (data[key] instanceof Date) {
             newData[key] = Timestamp.fromDate(data[key]);
-        } else if (key === 'completedAt' && data[key] === null) {
-            newData[key] = null;
-        } else if (key === 'completedAt' && data[key]) {
-            newData[key] = serverTimestamp();
         } else if (data[key] !== undefined) {
              newData[key] = data[key];
         }
@@ -220,3 +216,4 @@ export const deleteTask = async (workspaceId: string, projectId: string, milesto
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
+
