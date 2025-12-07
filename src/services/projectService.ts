@@ -12,28 +12,21 @@ import {
     orderBy,
     getDoc,
     runTransaction,
-    serverTimestamp,
     where
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 const projectsCollection = collection(db, 'projects');
 
-
-// Helper to convert single level date properties to Firestore Timestamps
-// and filter out any undefined values.
-const processTaskData = (data: any): any => {
-    const newData: { [key: string]: any } = {};
-    for (const key in data) {
-        if (data[key] !== undefined) {
-             if (data[key] instanceof Date) {
-                newData[key] = Timestamp.fromDate(data[key]);
-            } else {
-                newData[key] = data[key];
-            }
+// Helper to filter out any undefined values before sending to Firestore.
+const cleanData = (obj: any): any => {
+    const newObj: { [key: string]: any } = {};
+    for (const key in obj) {
+        if (obj[key] !== undefined) {
+            newObj[key] = obj[key];
         }
     }
-    return newData;
+    return newObj;
 };
 
 
@@ -67,17 +60,17 @@ export const addProject = async (workspaceId: string, project: Omit<Project, 'id
     const newProject = {
         ...project,
         milestones: [],
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.now(),
         workspaceId: workspaceId,
     }
-    const docRef = await addDoc(projectsCollection, newProject);
+    const docRef = await addDoc(projectsCollection, cleanData(newProject));
     const docSnap = await getDoc(docRef);
     return { ...docSnap.data(), id: docRef.id } as Project;
 };
 
 export const updateProject = async (workspaceId: string, id: string, project: Partial<Project>): Promise<void> => {
     const docRef = doc(db, 'projects', id);
-    await updateDoc(docRef, project);
+    await updateDoc(docRef, cleanData(project));
 };
 
 export const deleteProject = async (workspaceId: string, id: string): Promise<void> => {
@@ -137,17 +130,17 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
             throw new Error("Project does not belong to this workspace!");
         }
         
-        const processedTask = processTaskData(task);
+        const taskWithTimestamp = task.dueDate ? { ...task, dueDate: Timestamp.fromDate(task.dueDate as Date) } : task;
 
         const newTask: Task = {
             id: uuidv4(),
             completed: false,
-            ...processedTask,
+            ...taskWithTimestamp,
         };
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
-                return { ...m, tasks: [...(m.tasks || []), newTask] };
+                return { ...m, tasks: [...(m.tasks || []), cleanData(newTask)] };
             }
             return m;
         });
@@ -171,20 +164,15 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
         let updateData: {[key: string]: any} = { ...taskUpdate };
         
         if (taskUpdate.completed === true && !taskUpdate.completedAt) {
-            updateData.completedAt = serverTimestamp();
-        } else if (taskUpdate.completed === false) {
-            updateData.completedAt = null; // Use null to clear the timestamp in Firestore
+            updateData.completedAt = Timestamp.now();
         }
-
-        const processedUpdateData = processTaskData(updateData);
         
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        const updatedTask = { ...t, ...processedUpdateData };
-                        // If we are un-checking the task, explicitly remove completedAt
-                        if (processedUpdateData.completed === false) {
+                        const updatedTask = cleanData({ ...t, ...updateData });
+                         if (updateData.completed === false) {
                             delete updatedTask.completedAt;
                         }
                         return updatedTask;
