@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -201,9 +201,9 @@ export default function ProjectTaskPage() {
                 project={project}
                 onAddMilestone={(data) => handleAddMilestone(project.id, data)}
                 onAddTask={(milestoneId, data) => handleAddTask(project.id, milestoneId, data)}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-                onDeleteMilestone={handleDeleteMilestone}
+                onUpdateTask={(milestoneId, taskId, data) => handleUpdateTask(project.id, milestoneId, taskId, data)}
+                onDeleteTask={(milestoneId, taskId) => handleDeleteTask(project.id, milestoneId, taskId)}
+                onDeleteMilestone={(milestoneId) => handleDeleteMilestone(project.id, milestoneId)}
                 onDeleteProject={() => handleDeleteProject(project.id)}
                 processingAction={processingAction}
               />
@@ -220,9 +220,9 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
   project: Project,
   onAddMilestone: (data: z.infer<typeof milestoneSchema>) => Promise<boolean>,
   onAddTask: (milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
-  onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
-  onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
-  onDeleteMilestone: (projectId: string, milestoneId: string) => void,
+  onUpdateTask: (milestoneId: string, taskId: string, data: Partial<Task>) => void,
+  onDeleteTask: (milestoneId: string, taskId: string) => void,
+  onDeleteMilestone: (milestoneId: string) => void,
   onDeleteProject: () => void,
   processingAction: string | null,
 }) {
@@ -251,12 +251,11 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
             {project.milestones.map(milestone => (
                 <MilestoneItem
                     key={milestone.id}
-                    projectId={project.id}
                     milestone={milestone}
                     onAddTask={(data) => onAddTask(milestone.id, data)}
-                    onUpdateTask={onUpdateTask}
-                    onDeleteTask={onDeleteTask}
-                    onDelete={() => onDeleteMilestone(project.id, milestone.id)}
+                    onUpdateTask={(taskId: string, data: Partial<Task>) => onUpdateTask(milestone.id, taskId, data)}
+                    onDeleteTask={(taskId: string) => onDeleteTask(milestone.id, taskId)}
+                    onDelete={() => onDeleteMilestone(milestone.id)}
                     processingAction={processingAction}
                 />
             ))}
@@ -305,12 +304,11 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
 
 
 // Milestone Components
-function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
-  projectId: string,
+function MilestoneItem({ milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
   milestone: Milestone,
   onAddTask: (data: z.infer<typeof taskSchema>) => Promise<boolean>,
-  onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
-  onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
+  onUpdateTask: (taskId: string, data: Partial<Task>) => void,
+  onDeleteTask: (taskId: string) => void,
   onDelete: () => void,
   processingAction: string | null,
 }) {
@@ -358,8 +356,8 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                 <TaskItem 
                     key={task.id} 
                     task={task} 
-                    onUpdate={(data) => onUpdateTask(projectId, milestone.id, task.id, data)}
-                    onDelete={() => onDeleteTask(projectId, milestone.id, task.id)}
+                    onUpdate={(data) => onUpdateTask(task.id, data)}
+                    onDelete={() => onDeleteTask(task.id)}
                     isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
