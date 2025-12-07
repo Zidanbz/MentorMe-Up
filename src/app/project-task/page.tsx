@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -92,7 +92,7 @@ export default function ProjectTaskPage() {
   const handleAddTask = async (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => {
     if (!userProfile?.workspaceId) return false;
     try {
-      await addTask(userProfile.workspaceId, projectId, milestoneId, { ...data });
+      await addTask(userProfile.workspaceId, projectId, milestoneId, data);
       fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
@@ -246,7 +246,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     key={milestone.id}
                     projectId={project.id}
                     milestone={milestone}
-                    onAddTask={onAddTask}
+                    onAddTask={(data) => onAddTask(project.id, milestone.id, data)}
                     onUpdateTask={onUpdateTask}
                     onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
@@ -301,7 +301,7 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
 function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDeleteTask, onDelete, processingAction }: {
   projectId: string,
   milestone: Milestone,
-  onAddTask: (projectId: string, milestoneId: string, data: z.infer<typeof taskSchema>) => Promise<boolean>,
+  onAddTask: (data: z.infer<typeof taskSchema>) => Promise<boolean>,
   onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
   onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
@@ -332,7 +332,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     title="Add New Task"
                     description={`Create a new task for the "${milestone.name}" milestone.`}
                     schema={taskSchema}
-                    onSubmit={(data) => onAddTask(projectId, milestone.id, data)}
+                    onSubmit={onAddTask}
                     fields={[
                         { name: 'name', label: 'Task Name', placeholder: 'e.g. Design social media assets' },
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
@@ -403,10 +403,13 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
     
     const dueDate = useMemo(() => {
         if (!task.dueDate) return null;
-        if (task.dueDate instanceof Timestamp) {
-            return task.dueDate.toDate();
+        // The dueDate can be a Firebase Timestamp or a regular Date object after being picked
+        const date = task.dueDate instanceof Timestamp ? task.dueDate.toDate() : task.dueDate;
+        // Check if the date is valid before formatting
+        if (date && !isNaN(date.getTime())) {
+            return format(date, 'MMM d');
         }
-        return task.dueDate as Date;
+        return null;
     }, [task.dueDate]);
 
     return (
@@ -417,7 +420,7 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
             </label>
             {dueDate && (
                 <span className="text-xs text-muted-foreground">
-                    Due: {format(dueDate, 'MMM d')}
+                    Due: {dueDate}
                 </span>
             )}
             <TaskActions onDelete={onDelete} isDeleting={isDeleting} />
@@ -541,6 +544,8 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
     </Dialog>
   );
 }
+
+    
 
     
 
