@@ -413,6 +413,7 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
     
     const dueDate = useMemo(() => {
         if (!task.dueDate) return null;
+        // Ensure dueDate is a Date object before formatting
         const date = task.dueDate instanceof Timestamp ? task.dueDate.toDate() : task.dueDate;
         if (date && !isNaN(date.getTime())) {
             return format(date, 'MMM d');
@@ -420,7 +421,7 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
         return null;
     }, [task.dueDate]);
 
-    const completedAt = useMemo(() => {
+     const completedAt = useMemo(() => {
         if (!task.completedAt) return null;
         const date = task.completedAt instanceof Timestamp ? task.completedAt.toDate() : task.completedAt;
         if (date && !isNaN(date.getTime())) {
@@ -436,7 +437,7 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
                 <label htmlFor={`task-${task.id}`} className={cn("text-sm", task.completed && "line-through text-muted-foreground")}>
                     {task.name}
                 </label>
-                {task.completed && completedAt && (
+                 {task.completed && completedAt && (
                     <p className="text-xs text-green-600">Completed: {completedAt}</p>
                 )}
             </div>
@@ -542,11 +543,16 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {controllerField.value ? format(controllerField.value, 'PPP') : <span>Pick a date</span>}
+                                            {controllerField.value ? format(new Date(controllerField.value), 'PPP') : <span>Pick a date</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={controllerField.value as Date | undefined} onSelect={controllerField.onChange} initialFocus />
+                                        <Calendar 
+                                            mode="single" 
+                                            selected={controllerField.value as Date | undefined} 
+                                            onSelect={controllerField.onChange} 
+                                            initialFocus 
+                                        />
                                     </PopoverContent>
                                 </Popover>
                             )}
