@@ -3,7 +3,7 @@
 import { AppLayout } from '@/components/shared/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -11,14 +11,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { PlusCircle, Loader2, MoreVertical, Trash2, Edit, CalendarIcon } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Trash2, Edit } from 'lucide-react';
 import type { Project, Milestone, Task } from '@/types';
 import { addProject, getProjects, addMilestone, addTask, updateTask, deleteTask, deleteMilestone, deleteProject } from '@/services/projectService';
 import { cn } from '@/lib/utils';
@@ -34,7 +32,13 @@ const milestoneSchema = z.object({
 const taskSchema = z.object({
   name: z.string().min(1, "Task name is required"),
   description: z.string().optional(),
-  dueDate: z.date().optional(),
+  dueDate: z.preprocess((arg) => {
+    if (typeof arg === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(arg)) {
+      const [day, month, year] = arg.split('/').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return arg;
+  }, z.date().optional()),
 });
 
 
@@ -96,6 +100,7 @@ export default function ProjectTaskPage() {
       fetchProjects(userProfile.workspaceId);
       return true;
     } catch (error) {
+      console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to add task.' });
       return false;
     }
@@ -104,14 +109,7 @@ export default function ProjectTaskPage() {
   const handleUpdateTask = useCallback(async (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => {
     if (!userProfile?.workspaceId) return;
     try {
-        let updateData: Partial<Task> = { ...data };
-        if (data.completed) {
-            updateData.completedAt = new Date();
-        } else if (data.completed === false) {
-            updateData.completedAt = undefined;
-        }
-
-      await updateTask(userProfile.workspaceId, projectId, milestoneId, taskId, updateData);
+      await updateTask(userProfile.workspaceId, projectId, milestoneId, taskId, data);
       fetchProjects(userProfile.workspaceId);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task.' });
@@ -256,8 +254,8 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     projectId={project.id}
                     milestone={milestone}
                     onAddTask={(data) => onAddTask(milestone.id, data)}
-                    onUpdateTask={(milestoneId, taskId, data) => onUpdateTask(project.id, milestoneId, taskId, data)}
-                    onDeleteTask={(milestoneId, taskId) => onDeleteTask(project.id, milestoneId, taskId)}
+                    onUpdateTask={onUpdateTask}
+                    onDeleteTask={onDeleteTask}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
                     processingAction={processingAction}
                 />
@@ -311,8 +309,8 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   projectId: string,
   milestone: Milestone,
   onAddTask: (data: z.infer<typeof taskSchema>) => Promise<boolean>,
-  onUpdateTask: (milestoneId: string, taskId: string, data: Partial<Task>) => void,
-  onDeleteTask: (milestoneId: string, taskId: string) => void,
+  onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
+  onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
   onDelete: () => void,
   processingAction: string | null,
 }) {
@@ -345,7 +343,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                     fields={[
                         { name: 'name', label: 'Task Name', placeholder: 'e.g. Design social media assets' },
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
-                        { name: 'dueDate', label: 'Due Date', type: 'date' },
+                        { name: 'dueDate', label: 'Due Date', placeholder: 'DD/MM/YYYY', type: 'text' },
                     ]}
                     defaultValues={{ name: '', description: '', dueDate: undefined }}
                 />
@@ -360,8 +358,8 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                 <TaskItem 
                     key={task.id} 
                     task={task} 
-                    onUpdate={(data) => onUpdateTask(milestone.id, task.id, data)}
-                    onDelete={() => onDeleteTask(milestone.id, task.id)}
+                    onUpdate={(data) => onUpdateTask(projectId, milestone.id, task.id, data)}
+                    onDelete={() => onDeleteTask(projectId, milestone.id, task.id)}
                     isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
@@ -413,10 +411,9 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
     
     const dueDate = useMemo(() => {
         if (!task.dueDate) return null;
-        // Ensure dueDate is a Date object before formatting
         const date = task.dueDate instanceof Timestamp ? task.dueDate.toDate() : task.dueDate;
         if (date && !isNaN(date.getTime())) {
-            return format(date, 'MMM d');
+            return format(date, 'dd/MM/yyyy');
         }
         return null;
     }, [task.dueDate]);
@@ -425,7 +422,7 @@ function TaskItem({ task, onUpdate, onDelete, isDeleting }: { task: Task, onUpda
         if (!task.completedAt) return null;
         const date = task.completedAt instanceof Timestamp ? task.completedAt.toDate() : task.completedAt;
         if (date && !isNaN(date.getTime())) {
-            return format(date, 'MMM d, HH:mm');
+            return format(date, 'dd/MM/yyyy, HH:mm');
         }
         return null;
     }, [task.completedAt]);
@@ -489,13 +486,13 @@ type FormDialogProps<T extends z.ZodObject<any, any>> = {
   description: string;
   schema: T;
   onSubmit: (data: z.infer<T>) => Promise<boolean>;
-  fields: { name: keyof z.infer<T> & string, label: string, placeholder?: string, type?: 'text' | 'textarea' | 'date' }[];
+  fields: { name: keyof z.infer<T> & string, label: string, placeholder?: string, type?: 'text' | 'textarea' }[];
   defaultValues: z.infer<T>;
 }
 
 function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, description, schema, onSubmit, fields, defaultValues }: FormDialogProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<z.infer<T>>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<z.infer<T>>({
     resolver: zodResolver(schema),
     defaultValues,
   });
@@ -528,35 +525,6 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
                     <Label htmlFor={field.name} className="text-right">{field.label}</Label>
                      {field.type === 'textarea' ? (
                          <Textarea id={field.name} placeholder={field.placeholder} className="col-span-3" {...register(field.name)} />
-                    ) : field.type === 'date' ? (
-                         <Controller
-                            name={field.name}
-                            control={control}
-                            render={({ field: controllerField }) => (
-                                 <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "col-span-3 justify-start text-left font-normal",
-                                                !controllerField.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {controllerField.value ? format(new Date(controllerField.value as any), 'PPP') : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar 
-                                            mode="single" 
-                                            selected={controllerField.value as Date | undefined} 
-                                            onSelect={controllerField.onChange}
-                                            initialFocus 
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            )}
-                        />
                     ) : (
                         <Input id={field.name} placeholder={field.placeholder} className="col-span-3" {...register(field.name)} />
                     )}
