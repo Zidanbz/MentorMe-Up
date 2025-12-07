@@ -118,7 +118,7 @@ export default function ProjectTaskPage() {
       await deleteTask(userProfile.workspaceId, projectId, milestoneId, taskId);
       fetchProjects(userProfile.workspaceId);
       toast({ title: 'Success', description: 'Task deleted successfully.' });
-    } catch (error) => {
+    } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete task.' });
     } finally {
       setProcessingAction(null);
@@ -175,6 +175,7 @@ export default function ProjectTaskPage() {
             schema={projectSchema}
             onSubmit={handleAddProject}
             fields={[{ name: 'name', label: 'Project Name', placeholder: 'e.g. Q3 Marketing Campaign' }]}
+            defaultValues={{ name: '' }}
           />
         </div>
 
@@ -234,6 +235,7 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
               fields={[
                 { name: 'name', label: 'Milestone Name', placeholder: 'e.g. Launch Week' },
               ]}
+              defaultValues={{ name: '' }}
             />
           <ProjectActions onDelete={onDeleteProject} isDeleting={processingAction === `project-delete-${project.id}`} />
         </div>
@@ -338,6 +340,7 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                         { name: 'description', label: 'Description', placeholder: 'Details about the task...', type: 'textarea' },
                         { name: 'dueDate', label: 'Due Date', type: 'date' },
                     ]}
+                    defaultValues={{ name: '', description: '', dueDate: undefined }}
                 />
                 <MilestoneActions 
                     onDelete={onDelete}
@@ -467,15 +470,18 @@ type FormDialogProps<T extends z.ZodObject<any, any>> = {
   schema: T;
   onSubmit: (data: z.infer<T>) => Promise<boolean>;
   fields: { name: keyof z.infer<T> & string, label: string, placeholder: string, type?: 'text' | 'textarea' | 'date' }[];
+  defaultValues: z.infer<T>;
 }
 
-function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, description, schema, onSubmit, fields }: FormDialogProps<T>) {
+function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, description, schema, onSubmit, fields, defaultValues }: FormDialogProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<z.infer<T>>({
     resolver: zodResolver(schema),
+    defaultValues,
   });
 
   const handleFormSubmit = async (data: z.infer<T>) => {
+    // The data object from react-hook-form is valid according to the schema
     const success = await onSubmit(data);
     if (success) {
       setIsOpen(false);
@@ -484,9 +490,9 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
 
   useEffect(() => {
     if (!isOpen) {
-        reset();
+        reset(defaultValues);
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, defaultValues]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
