@@ -231,7 +231,7 @@ export default function ProjectTaskPage() {
                 project={project}
                 onAddMilestone={(data) => handleAddMilestone(project.id, data)}
                 onAddTask={(milestoneId, data) => handleAddTask(project.id, milestoneId, data)}
-                onUpdateTask={onUpdateTask}
+                onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
                 onDeleteMilestone={handleDeleteMilestone}
                 onDeleteProject={() => handleDeleteProject(project.id)}
