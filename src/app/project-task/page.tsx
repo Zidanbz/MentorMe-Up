@@ -101,7 +101,7 @@ export default function ProjectTaskPage() {
     }
   };
 
-  const handleUpdateTask = async (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => {
+  const handleUpdateTask = useCallback(async (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => {
     if (!userProfile?.workspaceId) return;
     try {
         let updateData: Partial<Task> = { ...data };
@@ -116,9 +116,9 @@ export default function ProjectTaskPage() {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update task.' });
     }
-  };
+  }, [userProfile, fetchProjects, toast]);
   
-  const handleDeleteTask = async (projectId: string, milestoneId: string, taskId: string) => {
+  const handleDeleteTask = useCallback(async (projectId: string, milestoneId: string, taskId: string) => {
     if (!userProfile?.workspaceId) return;
     setProcessingAction(`task-delete-${taskId}`);
     try {
@@ -130,7 +130,7 @@ export default function ProjectTaskPage() {
     } finally {
       setProcessingAction(null);
     }
-  }
+  }, [userProfile, fetchProjects, toast]);
 
   const handleDeleteMilestone = async (projectId: string, milestoneId: string) => {
     if (!userProfile?.workspaceId) return;
@@ -256,8 +256,8 @@ function ProjectItem({ project, onAddMilestone, onAddTask, onUpdateTask, onDelet
                     projectId={project.id}
                     milestone={milestone}
                     onAddTask={(data) => onAddTask(milestone.id, data)}
-                    onUpdateTask={onUpdateTask}
-                    onDeleteTask={onDeleteTask}
+                    onUpdateTask={(milestoneId, taskId, data) => onUpdateTask(project.id, milestoneId, taskId, data)}
+                    onDeleteTask={(milestoneId, taskId) => onDeleteTask(project.id, milestoneId, taskId)}
                     onDelete={() => onDeleteMilestone(project.id, milestone.id)}
                     processingAction={processingAction}
                 />
@@ -311,8 +311,8 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
   projectId: string,
   milestone: Milestone,
   onAddTask: (data: z.infer<typeof taskSchema>) => Promise<boolean>,
-  onUpdateTask: (projectId: string, milestoneId: string, taskId: string, data: Partial<Task>) => void,
-  onDeleteTask: (projectId: string, milestoneId: string, taskId: string) => void,
+  onUpdateTask: (milestoneId: string, taskId: string, data: Partial<Task>) => void,
+  onDeleteTask: (milestoneId: string, taskId: string) => void,
   onDelete: () => void,
   processingAction: string | null,
 }) {
@@ -360,8 +360,8 @@ function MilestoneItem({ projectId, milestone, onAddTask, onUpdateTask, onDelete
                 <TaskItem 
                     key={task.id} 
                     task={task} 
-                    onUpdate={(data) => onUpdateTask(projectId, milestone.id, task.id, data)}
-                    onDelete={() => onDeleteTask(projectId, milestone.id, task.id)}
+                    onUpdate={(data) => onUpdateTask(milestone.id, task.id, data)}
+                    onDelete={() => onDeleteTask(milestone.id, task.id)}
                     isDeleting={processingAction === `task-delete-${task.id}`}
                 />
             ))}
@@ -550,7 +550,7 @@ function FormDialog<T extends z.ZodObject<any, any>>({ trigger, title, descripti
                                         <Calendar 
                                             mode="single" 
                                             selected={controllerField.value as Date | undefined} 
-                                            onSelect={controllerField.onChange} 
+                                            onSelect={controllerField.onChange}
                                             initialFocus 
                                         />
                                     </PopoverContent>
