@@ -21,13 +21,16 @@ const projectsCollection = collection(db, 'projects');
 
 
 // Helper to convert single level date properties to Firestore Timestamps
-const convertDatesToTimestamps = (data: any): any => {
+// and filter out any undefined values.
+const processTaskData = (data: any): any => {
     const newData: { [key: string]: any } = {};
     for (const key in data) {
-        if (data[key] instanceof Date) {
-            newData[key] = Timestamp.fromDate(data[key]);
-        } else if (data[key] !== undefined) {
-             newData[key] = data[key];
+        if (data[key] !== undefined) {
+             if (data[key] instanceof Date) {
+                newData[key] = Timestamp.fromDate(data[key]);
+            } else {
+                newData[key] = data[key];
+            }
         }
     }
     return newData;
@@ -52,11 +55,11 @@ export const getProjects = async (workspaceId: string): Promise<Project[]> => {
             index === self.findIndex((p) => p.id === project.id)
         );
         // Re-sort after merge
-        uniqueProjects.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        uniqueProjects.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
         return uniqueProjects;
     }
     
-    projects.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    projects.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
     return projects;
 };
 
@@ -134,15 +137,13 @@ export const addTask = async (workspaceId: string, projectId: string, milestoneI
             throw new Error("Project does not belong to this workspace!");
         }
         
-        const taskWithTimestamps = convertDatesToTimestamps(task);
+        const processedTask = processTaskData(task);
 
         const newTask: Task = {
             id: uuidv4(),
-            name: task.name,
             completed: false,
-            completedAt: undefined,
-            ...taskWithTimestamps,
-        }
+            ...processedTask,
+        };
 
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
@@ -167,20 +168,26 @@ export const updateTask = async (workspaceId: string, projectId: string, milesto
             throw new Error("Project does not belong to this workspace!");
         }
         
-        let updateData = { ...taskUpdate };
-        if(taskUpdate.completed === true) {
-            updateData.completedAt = serverTimestamp() as Timestamp;
+        let updateData: {[key: string]: any} = { ...taskUpdate };
+        
+        if (taskUpdate.completed === true && !taskUpdate.completedAt) {
+            updateData.completedAt = serverTimestamp();
         } else if (taskUpdate.completed === false) {
-            updateData.completedAt = undefined;
+            updateData.completedAt = null; // Use null to clear the timestamp in Firestore
         }
 
-        const convertedUpdateData = convertDatesToTimestamps(updateData);
-
+        const processedUpdateData = processTaskData(updateData);
+        
         const newMilestones = projectData.milestones.map(m => {
             if (m.id === milestoneId) {
                 const newTasks = m.tasks.map(t => {
                     if (t.id === taskId) {
-                        return { ...t, ...convertedUpdateData };
+                        const updatedTask = { ...t, ...processedUpdateData };
+                        // If we are un-checking the task, explicitly remove completedAt
+                        if (processedUpdateData.completed === false) {
+                            delete updatedTask.completedAt;
+                        }
+                        return updatedTask;
                     }
                     return t;
                 });
@@ -216,4 +223,3 @@ export const deleteTask = async (workspaceId: string, projectId: string, milesto
         transaction.update(projectRef, { milestones: newMilestones });
     });
 };
-
