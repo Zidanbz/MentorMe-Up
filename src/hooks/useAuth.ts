@@ -32,8 +32,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
       if (firebaseUser) {
-        setLoading(true);
         try {
           let profile = await getUserProfile(firebaseUser.uid);
 
@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('workspaceIcon', 'Layers');
           }
 
+          // The redirect logic is now guaranteed to run after all profile state is set.
           if (pathname.startsWith('/login') || pathname === '/') {
               router.push('/dashboard');
           }
@@ -94,6 +95,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setUserProfile(null);
         setLoading(false);
+        // If the user logs out, redirect them to the root page if they are on a protected route.
+        if (!pathname.startsWith('/login') && pathname !== '/') {
+          router.push('/');
+        }
       }
     });
 
