@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -272,14 +272,12 @@ function ProjectActions({ onDelete, isDeleting }: { onDelete: () => void, isDele
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
-                      <AlertDialogTrigger asChild>
-                        <div>
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Project
-                        </div>
-                      </AlertDialogTrigger>
-                    </DropdownMenuItem>
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
                 </DropdownMenuContent>
             </DropdownMenu>
              <AlertDialogContent>
@@ -377,13 +375,11 @@ function MilestoneActions({ onDelete, isDeleting }: {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
-                        <AlertDialogTrigger asChild>
-                            <div className="flex items-center">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
-                            </div>
-                        </AlertDialogTrigger>
-                    </DropdownMenuItem>
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Milestone
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
                 </DropdownMenuContent>
             </DropdownMenu>
              <AlertDialogContent>
@@ -439,13 +435,11 @@ function TaskActions({ onDelete, isDeleting }: { onDelete: () => void, isDeletin
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
-                        <AlertDialogTrigger asChild>
-                            <div className="flex items-center">
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-red-600">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete Task
-                            </div>
-                        </AlertDialogTrigger>
-                    </DropdownMenuItem>
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
                 </DropdownMenuContent>
             </DropdownMenu>
             <AlertDialogContent>
@@ -547,5 +541,7 @@ function FormDialog({ trigger, title, description, schema, onSubmit, fields }: F
     </Dialog>
   );
 }
+
+    
 
     
